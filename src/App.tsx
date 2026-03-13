@@ -57,8 +57,14 @@ export default function App() {
       if (user && isSupabaseConfigured) {
         setIsCloudSyncing(true);
         try {
-          // Если в localStorage есть данные — мигрируем их в БД, затем чистим
+          // Миграция из localStorage → БД.
+          // Читаем и сразу синхронно удаляем, чтобы повторный запуск эффекта
+          // (onAuthStateChange может сработать дважды) не создавал дубликаты.
           const localRaw = localStorage.getItem('lumina_library');
+          localStorage.removeItem('lumina_library');
+          localStorage.removeItem('lumina_active_book');
+          localStorage.removeItem('lumina_book');
+
           if (localRaw) {
             try {
               const localBooks: Book[] = JSON.parse(localRaw);
@@ -75,9 +81,6 @@ export default function App() {
             } catch (e) {
               console.error('Migration error:', e);
             }
-            localStorage.removeItem('lumina_library');
-            localStorage.removeItem('lumina_active_book');
-            localStorage.removeItem('lumina_book');
           }
 
           // Загружаем из БД
