@@ -12,7 +12,7 @@ import { Minimize2, Cloud, CloudOff } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { cn } from './utils/lib';
 
-const createNewBook = (title: string = 'Новое произведение', author: string = ''): Book => ({
+const createNewBook = (title: string = '', author: string = ''): Book => ({
   id: Math.random().toString(36).substring(7),
   title,
   author,
@@ -21,7 +21,7 @@ const createNewBook = (title: string = 'Новое произведение', au
     {
       id: '1',
       title: 'Глава 1',
-      content: '<p>Начните свою историю здесь...</p>',
+      content: '',
     },
   ],
 });
@@ -105,7 +105,7 @@ export default function App() {
             setActiveBookId(formattedBooks[0].id);
             setActiveChapterId(formattedBooks[0].chapters[0].id);
           } else {
-            const defaultBook = createNewBook('Моё произведение', user.user_metadata?.full_name || '');
+            const defaultBook = createNewBook('', user.user_metadata?.full_name || '');
             setBooks([defaultBook]);
             setActiveBookId(defaultBook.id);
             setActiveChapterId(defaultBook.chapters[0].id);
@@ -146,7 +146,7 @@ export default function App() {
       } catch (e) {}
     }
     const defaultAuthor = user?.user_metadata?.full_name || '';
-    return [createNewBook('Моё произведение', defaultAuthor)];
+    return [createNewBook('', defaultAuthor)];
   };
 
   // Auto-save
@@ -199,7 +199,7 @@ export default function App() {
 
   const activeBook = useMemo(() => {
     const defaultAuthor = user?.user_metadata?.full_name || '';
-    return books.find(b => b.id === activeBookId) || books[0] || createNewBook('Новое произведение', defaultAuthor);
+    return books.find(b => b.id === activeBookId) || books[0] || createNewBook('', defaultAuthor);
   }, [books, activeBookId, user]);
 
   const activeChapter = useMemo(() => 
@@ -209,7 +209,7 @@ export default function App() {
 
   const handleAddBook = () => {
     const defaultAuthor = user?.user_metadata?.full_name || '';
-    const newBook = createNewBook('Новое произведение', defaultAuthor);
+    const newBook = createNewBook('', defaultAuthor);
     setBooks(prev => [newBook, ...prev]);
     setActiveBookId(newBook.id);
     setActiveChapterId(newBook.chapters[0].id);
@@ -405,7 +405,7 @@ export default function App() {
                 localStorage.removeItem('lumina_library');
                 localStorage.removeItem('lumina_active_book');
                 localStorage.removeItem('lumina_book');
-                const fresh = createNewBook('Моё произведение', '');
+                const fresh = createNewBook('', '');
                 setBooks([fresh]);
                 setActiveBookId(fresh.id);
                 setActiveChapterId(fresh.chapters[0].id);
