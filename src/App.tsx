@@ -35,6 +35,7 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [isReadingMode, setIsReadingMode] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
@@ -352,6 +353,35 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Mobile sidebar — drawer overlay */}
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <>
+            <motion.div
+              className="fixed inset-0 bg-black/40 z-30 md:hidden"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            <motion.div
+              className="fixed left-0 top-0 bottom-0 z-40 md:hidden"
+              initial={{ x: -264 }} animate={{ x: 0 }} exit={{ x: -264 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            >
+              <Sidebar
+                chapters={activeBook.chapters}
+                activeChapterId={activeChapterId}
+                onSelectChapter={(id) => { setActiveChapterId(id); setIsMobileSidebarOpen(false); }}
+                onAddChapter={handleAddChapter}
+                onDeleteChapter={handleDeleteChapter}
+                onOpenLibrary={() => { setIsLibraryOpen(true); setIsMobileSidebarOpen(false); }}
+                onClose={() => setIsMobileSidebarOpen(false)}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop sidebar */}
       <AnimatePresence>
         {!isFocusMode && (
           <motion.div
@@ -359,7 +389,7 @@ export default function App() {
             animate={{ x: 0 }}
             exit={{ x: -260 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="z-20"
+            className="z-20 hidden md:block"
           >
             <Sidebar
               chapters={activeBook.chapters}
@@ -399,6 +429,7 @@ export default function App() {
                 isExporting={isExporting}
                 onToggleFocus={() => setIsFocusMode(true)}
                 onToggleReading={() => setIsReadingMode(true)}
+                onOpenSidebar={() => setIsMobileSidebarOpen(true)}
                 user={user}
                 isCloudSyncing={isCloudSyncing}
                 onSignOut={() => {
@@ -428,8 +459,8 @@ export default function App() {
           </motion.button>
         )}
 
-        <main className="flex-1 overflow-y-auto p-6 md:p-12 scroll-smooth">
-          <div className="max-w-4xl mx-auto space-y-8 pb-32">
+        <main className="flex-1 overflow-y-auto px-4 py-6 md:p-12 scroll-smooth">
+          <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 pb-32">
             {!isFocusMode && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -440,7 +471,7 @@ export default function App() {
                   type="text"
                   value={activeBook.title}
                   onChange={(e) => handleUpdateBookMeta('title', e.target.value)}
-                  className="w-full text-4xl md:text-5xl font-serif font-bold bg-transparent border-none focus:outline-none placeholder:text-stone-300"
+                  className="w-full text-3xl md:text-5xl font-serif font-bold bg-transparent border-none focus:outline-none placeholder:text-stone-300"
                   placeholder="Название произведения"
                 />
                 <input

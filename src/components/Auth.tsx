@@ -58,7 +58,7 @@ export default function Auth({ user, onSignOut }: AuthProps) {
             <UserIcon size={14} className="text-stone-500" />
           )}
         </div>
-        <div className="flex flex-col">
+        <div className="hidden sm:flex flex-col">
           <span className="text-[11px] font-medium text-stone-700 truncate max-w-[100px] leading-tight">
             {user.user_metadata?.full_name || user.email}
           </span>
@@ -69,6 +69,14 @@ export default function Auth({ user, onSignOut }: AuthProps) {
             Выйти
           </button>
         </div>
+        {/* Mobile: tap avatar to sign out */}
+        <button
+          onClick={handleSignOut}
+          className="sm:hidden text-[9px] text-stone-400 hover:text-red-500 transition-colors cursor-pointer leading-none"
+          title="Выйти"
+        >
+          Выйти
+        </button>
       </div>
     );
   }

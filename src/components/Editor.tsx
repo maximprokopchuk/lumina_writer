@@ -140,7 +140,7 @@ export default function Editor({ content, onChange }: EditorProps) {
         </button>
       </div>
 
-      <div className="p-8 md:p-12">
+      <div className="p-4 md:p-12">
         <EditorContent editor={editor} />
       </div>
     </div>

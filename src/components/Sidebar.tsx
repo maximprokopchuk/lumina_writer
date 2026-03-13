@@ -1,4 +1,4 @@
-import { Plus, Trash2, Book as BookIcon, ChevronRight, Library as LibraryIcon } from 'lucide-react';
+import { Plus, Trash2, Book as BookIcon, ChevronRight, Library as LibraryIcon, X } from 'lucide-react';
 import { Chapter } from '../types';
 import { cn } from '../utils/lib';
 
@@ -9,6 +9,7 @@ interface SidebarProps {
   onAddChapter: () => void;
   onDeleteChapter: (id: string) => void;
   onOpenLibrary: () => void;
+  onClose?: () => void;
 }
 
 export default function Sidebar({
@@ -18,17 +19,23 @@ export default function Sidebar({
   onAddChapter,
   onDeleteChapter,
   onOpenLibrary,
+  onClose,
 }: SidebarProps) {
   return (
     <div className="w-64 h-full bg-stone-50 border-r border-stone-200 flex flex-col">
       <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-white">
         <button
           onClick={onOpenLibrary}
-          className="flex items-center gap-2 text-stone-600 hover:text-stone-900 transition-colors font-medium text-sm"
+          className="flex items-center gap-2 text-stone-600 hover:text-stone-900 transition-colors font-medium text-sm cursor-pointer"
         >
           <LibraryIcon size={18} />
           <span>Библиотека</span>
         </button>
+        {onClose && (
+          <button onClick={onClose} className="md:hidden p-1 text-stone-400 hover:text-stone-700 cursor-pointer">
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-stone-50/50">
