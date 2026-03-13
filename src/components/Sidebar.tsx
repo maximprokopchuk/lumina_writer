@@ -82,7 +82,7 @@ export default function Sidebar({
       </div>
       
       <div className="p-4 border-t border-stone-200 flex items-center justify-center">
-        <img src="/logo.svg" alt="Lumina Write" className="h-7 select-none opacity-80" draggable={false} />
+        <img src="/logo.svg" alt="Lumina Writer" className="h-7 select-none opacity-80" draggable={false} />
       </div>
     </div>
   );
