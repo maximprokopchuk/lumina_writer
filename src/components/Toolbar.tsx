@@ -1,4 +1,4 @@
-import { FileText, File as FilePdf, Save, Maximize2, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { FileText, File as FilePdf, Save, Maximize2, Cloud, CloudOff, Loader2, BookOpen } from 'lucide-react';
 import { cn } from '../utils/lib';
 import Auth from './Auth';
 
@@ -9,6 +9,7 @@ interface ToolbarProps {
   isSaving?: boolean;
   isExporting?: boolean;
   onToggleFocus: () => void;
+  onToggleReading: () => void;
   user: any;
   isCloudSyncing: boolean;
   onSignOut: () => void;
@@ -21,6 +22,7 @@ export default function Toolbar({
   isSaving,
   isExporting,
   onToggleFocus,
+  onToggleReading,
   user,
   isCloudSyncing,
   onSignOut
@@ -44,6 +46,15 @@ export default function Toolbar({
         >
           <Maximize2 size={16} />
           <span>Фокус</span>
+        </button>
+
+        <button
+          onClick={onToggleReading}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors cursor-pointer"
+          title="Режим чтения"
+        >
+          <BookOpen size={16} />
+          <span>Читать</span>
         </button>
       </div>
 

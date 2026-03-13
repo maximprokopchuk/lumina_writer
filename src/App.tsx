@@ -4,6 +4,7 @@ import Toolbar from './components/Toolbar';
 import Editor from './components/Editor';
 import Library from './components/Library';
 import Auth from './components/Auth';
+import ReadingView from './components/ReadingView';
 import { Book, Chapter } from './types';
 import { exportToPDF, exportToDOCX } from './utils/export';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,6 +34,7 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [isReadingMode, setIsReadingMode] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
@@ -332,6 +334,12 @@ export default function App() {
   return (
     <div className="flex h-screen bg-stone-100 font-sans text-stone-900 overflow-hidden relative">
       <AnimatePresence>
+        {isReadingMode && (
+          <ReadingView book={activeBook} onClose={() => setIsReadingMode(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {isLibraryOpen && (
           <Library
             books={books}
@@ -390,6 +398,7 @@ export default function App() {
                 isSaving={isSaving}
                 isExporting={isExporting}
                 onToggleFocus={() => setIsFocusMode(true)}
+                onToggleReading={() => setIsReadingMode(true)}
                 user={user}
                 isCloudSyncing={isCloudSyncing}
                 onSignOut={() => {
