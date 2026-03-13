@@ -12,6 +12,11 @@ import { Minimize2, Cloud, CloudOff } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { cn } from './utils/lib';
 
+const isBookEmpty = (book: Book) =>
+  !book.title.trim() &&
+  !book.author.trim() &&
+  book.chapters.every(c => !c.content.trim());
+
 const createNewBook = (title: string = '', author: string = ''): Book => ({
   id: Math.random().toString(36).substring(7),
   title,
@@ -71,7 +76,8 @@ export default function App() {
           if (localRaw) {
             try {
               const localBooks: Book[] = JSON.parse(localRaw);
-              for (const book of localBooks) {
+              const booksToMigrate = localBooks.filter(b => !isBookEmpty(b));
+              for (const book of booksToMigrate) {
                 await supabase.from('books').upsert({
                   id: book.id.length > 20 ? book.id : undefined,
                   user_id: user.id,
@@ -155,8 +161,15 @@ export default function App() {
     if (books.length === 0) return;
 
     const timer = setTimeout(async () => {
-      localStorage.setItem('lumina_library', JSON.stringify(books));
-      localStorage.setItem('lumina_active_book', activeBookId);
+      // Не сохраняем пустые книги (только плейсхолдеры) в localStorage
+      const booksToSave = books.filter(b => !isBookEmpty(b));
+      if (booksToSave.length > 0) {
+        localStorage.setItem('lumina_library', JSON.stringify(booksToSave));
+        localStorage.setItem('lumina_active_book', activeBookId);
+      } else {
+        localStorage.removeItem('lumina_library');
+        localStorage.removeItem('lumina_active_book');
+      }
 
       if (user && isSupabaseConfigured) {
         setIsCloudSyncing(true);
