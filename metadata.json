@@ -1,0 +1,5 @@
+{
+  "name": "Lumina Write",
+  "description": "A minimalist writing environment for authors with chapter management, rich text formatting, and export to PDF/DOCX.",
+  "requestFramePermissions": []
+}
