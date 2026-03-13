@@ -6,15 +6,15 @@ import Library from './components/Library';
 import Auth from './components/Auth';
 import { Book, Chapter } from './types';
 import { exportToPDF, exportToDOCX } from './utils/export';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Minimize2, Cloud, CloudOff } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { cn } from './utils/lib';
 
-const createNewBook = (title: string = 'Новое произведение'): Book => ({
+const createNewBook = (title: string = 'Новое произведение', author: string = ''): Book => ({
   id: Math.random().toString(36).substring(7),
   title,
-  author: '',
+  author,
   updatedAt: Date.now(),
   chapters: [
     {
@@ -123,7 +123,8 @@ export default function App() {
         return [{ ...parsed, id: 'legacy', updatedAt: Date.now() }];
       } catch (e) {}
     }
-    return [createNewBook('Моё произведение')];
+    const defaultAuthor = user?.user_metadata?.full_name || '';
+    return [createNewBook('Моё произведение', defaultAuthor)];
   };
 
   // Auto-save
@@ -174,10 +175,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFocusMode]);
 
-  const activeBook = useMemo(() => 
-    books.find(b => b.id === activeBookId) || books[0] || createNewBook(),
-    [books, activeBookId]
-  );
+  const activeBook = useMemo(() => {
+    const defaultAuthor = user?.user_metadata?.full_name || '';
+    return books.find(b => b.id === activeBookId) || books[0] || createNewBook('Новое произведение', defaultAuthor);
+  }, [books, activeBookId, user]);
 
   const activeChapter = useMemo(() => 
     activeBook.chapters.find(c => c.id === activeChapterId) || activeBook.chapters[0],
@@ -185,7 +186,8 @@ export default function App() {
   );
 
   const handleAddBook = () => {
-    const newBook = createNewBook();
+    const defaultAuthor = user?.user_metadata?.full_name || '';
+    const newBook = createNewBook('Новое произведение', defaultAuthor);
     setBooks(prev => [newBook, ...prev]);
     setActiveBookId(newBook.id);
     setActiveChapterId(newBook.chapters[0].id);
@@ -359,39 +361,15 @@ export default function App() {
                 onSave={handleManualSave}
                 isSaving={isSaving}
                 onToggleFocus={() => setIsFocusMode(true)}
+                user={user}
+                isCloudSyncing={isCloudSyncing}
+                onSignOut={() => setBooks(getLocalBooks())}
               />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Auth & Sync Status Overlay */}
-        {!isFocusMode && (
-          <div className="fixed bottom-6 left-6 z-30 flex items-center gap-3">
-            <Auth user={user} onSignOut={() => setBooks(getLocalBooks())} />
-            <div className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all",
-              user ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-stone-200 text-stone-500"
-            )}>
-              {isCloudSyncing ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                  <span>Синхронизация...</span>
-                </div>
-              ) : user ? (
-                <div className="flex items-center gap-2">
-                  <Cloud size={14} />
-                  <span>Облако активно</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <CloudOff size={14} />
-                  <span>Локальный режим</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
+        {/* Focus Mode Exit Button */}
         {isFocusMode && (
           <motion.button
             initial={{ opacity: 0, y: 20 }}

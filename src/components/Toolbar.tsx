@@ -1,5 +1,6 @@
-import { Download, FileText, File as FilePdf, Save, Maximize2 } from 'lucide-react';
+import { FileText, File as FilePdf, Save, Maximize2, Cloud, CloudOff } from 'lucide-react';
 import { cn } from '../utils/lib';
+import Auth from './Auth';
 
 interface ToolbarProps {
   onExportPDF: () => void;
@@ -7,9 +8,21 @@ interface ToolbarProps {
   onSave: () => void;
   isSaving?: boolean;
   onToggleFocus: () => void;
+  user: any;
+  isCloudSyncing: boolean;
+  onSignOut: () => void;
 }
 
-export default function Toolbar({ onExportPDF, onExportDOCX, onSave, isSaving, onToggleFocus }: ToolbarProps) {
+export default function Toolbar({ 
+  onExportPDF, 
+  onExportDOCX, 
+  onSave, 
+  isSaving, 
+  onToggleFocus,
+  user,
+  isCloudSyncing,
+  onSignOut
+}: ToolbarProps) {
   return (
     <div className="h-14 border-b border-stone-200 bg-white flex items-center justify-between px-6 sticky top-0 z-10">
       <div className="flex items-center gap-4">
@@ -51,19 +64,30 @@ export default function Toolbar({ onExportPDF, onExportDOCX, onSave, isSaving, o
           <span>DOCX</span>
         </button>
         
-        <div className="relative group">
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-stone-900 text-white hover:bg-stone-800 rounded-md transition-colors">
-            <Download size={16} />
-            <span>Экспорт</span>
-          </button>
-          <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-stone-200 rounded-md shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all transform origin-top-right scale-95 group-hover:scale-100">
-             <button onClick={onExportPDF} className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 flex items-center gap-2">
-               <FilePdf size={14} /> PDF Document
-             </button>
-             <button onClick={onExportDOCX} className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 flex items-center gap-2">
-               <FileText size={14} /> Word Document
-             </button>
+        <div className="flex items-center gap-3 ml-4">
+          <div className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+            user ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-stone-100 text-stone-500 border border-stone-200"
+          )}>
+            {isCloudSyncing ? (
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                <span>Синхронизация...</span>
+              </div>
+            ) : user ? (
+              <div className="flex items-center gap-2">
+                <Cloud size={14} />
+                <span>Облако</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <CloudOff size={14} />
+                <span>Локально</span>
+              </div>
+            )}
           </div>
+          
+          <Auth user={user} onSignOut={onSignOut} />
         </div>
       </div>
     </div>

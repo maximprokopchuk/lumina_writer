@@ -81,8 +81,8 @@ export default function Sidebar({
         ))}
       </div>
       
-      <div className="p-4 border-t border-stone-200 text-[10px] text-stone-400 uppercase tracking-widest text-center">
-        Lumina Write v1.0
+      <div className="p-4 border-t border-stone-200 flex items-center justify-center">
+        <img src="/logo.svg" alt="Lumina Write" className="h-7 select-none opacity-80" draggable={false} />
       </div>
     </div>
   );

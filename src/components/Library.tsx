@@ -1,7 +1,7 @@
 import { Plus, Trash2, Book as BookIcon, Clock, ChevronRight } from 'lucide-react';
 import { Book } from '../types';
 import { cn } from '../utils/lib';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 interface LibraryProps {
   books: Book[];
