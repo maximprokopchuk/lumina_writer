@@ -64,7 +64,7 @@ export default function Auth({ user, onSignOut }: AuthProps) {
           </span>
           <button
             onClick={handleSignOut}
-            className="text-[9px] text-stone-400 hover:text-red-500 transition-colors text-left leading-tight"
+            className="text-[9px] text-stone-400 hover:text-red-500 transition-colors text-left leading-tight cursor-pointer"
           >
             Выйти
           </button>

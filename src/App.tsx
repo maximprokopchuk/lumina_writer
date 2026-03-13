@@ -31,6 +31,7 @@ export default function App() {
   const [activeBookId, setActiveBookId] = useState<string>('');
   const [activeChapterId, setActiveChapterId] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
@@ -56,6 +57,30 @@ export default function App() {
       if (user && isSupabaseConfigured) {
         setIsCloudSyncing(true);
         try {
+          // Если в localStorage есть данные — мигрируем их в БД, затем чистим
+          const localRaw = localStorage.getItem('lumina_library');
+          if (localRaw) {
+            try {
+              const localBooks: Book[] = JSON.parse(localRaw);
+              for (const book of localBooks) {
+                await supabase.from('books').upsert({
+                  id: book.id.length > 20 ? book.id : undefined,
+                  user_id: user.id,
+                  title: book.title,
+                  author: book.author,
+                  chapters: book.chapters,
+                  updated_at: new Date(book.updatedAt).toISOString(),
+                }, { onConflict: 'id' });
+              }
+            } catch (e) {
+              console.error('Migration error:', e);
+            }
+            localStorage.removeItem('lumina_library');
+            localStorage.removeItem('lumina_active_book');
+            localStorage.removeItem('lumina_book');
+          }
+
+          // Загружаем из БД
           const { data, error } = await supabase
             .from('books')
             .select('*')
@@ -72,21 +97,13 @@ export default function App() {
               chapters: b.chapters,
             }));
             setBooks(formattedBooks);
-            
-            const lastActive = localStorage.getItem('lumina_active_book');
-            const initialBookId = lastActive && formattedBooks.some(b => b.id === lastActive) 
-              ? lastActive 
-              : formattedBooks[0].id;
-            
-            setActiveBookId(initialBookId);
-            const initialBook = formattedBooks.find(b => b.id === initialBookId) || formattedBooks[0];
-            setActiveChapterId(initialBook.chapters[0].id);
+            setActiveBookId(formattedBooks[0].id);
+            setActiveChapterId(formattedBooks[0].chapters[0].id);
           } else {
-            // If cloud is empty, try migrating from local
-            const localBooks = getLocalBooks();
-            setBooks(localBooks);
-            setActiveBookId(localBooks[0].id);
-            setActiveChapterId(localBooks[0].chapters[0].id);
+            const defaultBook = createNewBook('Моё произведение', user.user_metadata?.full_name || '');
+            setBooks([defaultBook]);
+            setActiveBookId(defaultBook.id);
+            setActiveChapterId(defaultBook.chapters[0].id);
           }
         } catch (error) {
           console.error('Error loading from cloud:', error);
@@ -356,14 +373,31 @@ export default function App() {
               className="z-10"
             >
               <Toolbar
-                onExportPDF={() => exportToPDF(activeBook)}
-                onExportDOCX={() => exportToDOCX(activeBook)}
+                onExportPDF={() => {
+                  setIsExporting(true);
+                  exportToPDF(activeBook);
+                  setTimeout(() => setIsExporting(false), 1000);
+                }}
+                onExportDOCX={async () => {
+                  setIsExporting(true);
+                  try { await exportToDOCX(activeBook); }
+                  finally { setIsExporting(false); }
+                }}
                 onSave={handleManualSave}
                 isSaving={isSaving}
+                isExporting={isExporting}
                 onToggleFocus={() => setIsFocusMode(true)}
                 user={user}
                 isCloudSyncing={isCloudSyncing}
-                onSignOut={() => setBooks(getLocalBooks())}
+                onSignOut={() => {
+                localStorage.removeItem('lumina_library');
+                localStorage.removeItem('lumina_active_book');
+                localStorage.removeItem('lumina_book');
+                const fresh = createNewBook('Моё произведение', '');
+                setBooks([fresh]);
+                setActiveBookId(fresh.id);
+                setActiveChapterId(fresh.chapters[0].id);
+              }}
               />
             </motion.div>
           )}

@@ -1,4 +1,4 @@
-import { FileText, File as FilePdf, Save, Maximize2, Cloud, CloudOff } from 'lucide-react';
+import { FileText, File as FilePdf, Save, Maximize2, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { cn } from '../utils/lib';
 import Auth from './Auth';
 
@@ -7,17 +7,19 @@ interface ToolbarProps {
   onExportDOCX: () => void;
   onSave: () => void;
   isSaving?: boolean;
+  isExporting?: boolean;
   onToggleFocus: () => void;
   user: any;
   isCloudSyncing: boolean;
   onSignOut: () => void;
 }
 
-export default function Toolbar({ 
-  onExportPDF, 
-  onExportDOCX, 
-  onSave, 
-  isSaving, 
+export default function Toolbar({
+  onExportPDF,
+  onExportDOCX,
+  onSave,
+  isSaving,
+  isExporting,
   onToggleFocus,
   user,
   isCloudSyncing,
@@ -29,15 +31,15 @@ export default function Toolbar({
         <button
           onClick={onSave}
           disabled={isSaving}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors disabled:opacity-50 cursor-pointer"
         >
           <Save size={16} />
           {isSaving ? 'Сохранение...' : 'Сохранить'}
         </button>
-        
+
         <button
           onClick={onToggleFocus}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors cursor-pointer"
           title="Режим фокусировки"
         >
           <Maximize2 size={16} />
@@ -47,20 +49,22 @@ export default function Toolbar({
 
       <div className="flex items-center gap-2">
         <div className="h-6 w-px bg-stone-200 mx-2" />
-        
+
         <button
           onClick={onExportPDF}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors"
+          disabled={isExporting}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors cursor-pointer disabled:opacity-50"
         >
-          <FilePdf size={16} className="text-red-500" />
+          {isExporting ? <Loader2 size={16} className="animate-spin text-red-400" /> : <FilePdf size={16} className="text-red-500" />}
           <span>PDF</span>
         </button>
-        
+
         <button
           onClick={onExportDOCX}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors"
+          disabled={isExporting}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors cursor-pointer disabled:opacity-50"
         >
-          <FileText size={16} className="text-blue-500" />
+          {isExporting ? <Loader2 size={16} className="animate-spin text-blue-400" /> : <FileText size={16} className="text-blue-500" />}
           <span>DOCX</span>
         </button>
         
