@@ -1,22 +1,8 @@
 import { create } from 'zustand';
 import { Book, Chapter } from '../types';
+import { isBookEmpty, createNewBook } from '../utils/book';
 
-// ---------------------------------------------------------------------------
-// Helpers (moved from App.tsx)
-// ---------------------------------------------------------------------------
-
-export const isBookEmpty = (book: Book): boolean =>
-  !book.title.trim() &&
-  !book.author.trim() &&
-  book.chapters.every(c => !c.content.trim());
-
-export const createNewBook = (title = '', author = ''): Book => ({
-  id: crypto.randomUUID(),
-  title,
-  author,
-  updatedAt: Date.now(),
-  chapters: [{ id: '1', title: 'Глава 1', content: '' }],
-});
+export { isBookEmpty, createNewBook };
 
 // ---------------------------------------------------------------------------
 // Store
@@ -71,7 +57,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ books: [newBook, ...books] });
     setActiveBookId(newBook.id);
     setActiveChapterId(newBook.chapters[0].id);
-    // UI state should be handled by the component using useUiStore
   },
 
   deleteBook: (id: string) => {
@@ -90,7 +75,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     setActiveBookId(id);
     const book = books.find(b => b.id === id);
     if (book) setActiveChapterId(book.chapters[0].id);
-    // UI state should be handled by the component using useUiStore
   },
 
   addChapter: () => {

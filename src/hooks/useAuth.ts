@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { useAppStore, createNewBook } from '../store/useAppStore';
+import { useAppStore } from '../store/useAppStore';
+import { createNewBook } from '../utils/book';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 
 export function useAuth() {
   const setUser = useAppStore(s => s.setUser);
@@ -22,9 +24,9 @@ export function useAuth() {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
     }
-    localStorage.removeItem('lumina_library');
-    localStorage.removeItem('lumina_active_book');
-    localStorage.removeItem('lumina_book');
+    localStorage.removeItem(STORAGE_KEYS.library);
+    localStorage.removeItem(STORAGE_KEYS.activeBook);
+    localStorage.removeItem(STORAGE_KEYS.legacyBook);
     const fresh = createNewBook('', '');
     setBooks([fresh]);
     setActiveBookId(fresh.id);

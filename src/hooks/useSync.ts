@@ -1,7 +1,10 @@
 import { useEffect, RefObject } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { useAppStore, isBookEmpty } from '../store/useAppStore';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { upsertBooks } from '../lib/api';
+import { useAppStore } from '../store/useAppStore';
 import { useUiStore } from '../store/useUiStore';
+import { isBookEmpty } from '../utils/book';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 
 export function useSync(lastCloudLoadRef: RefObject<number>) {
   const user = useAppStore(s => s.user);
@@ -17,11 +20,11 @@ export function useSync(lastCloudLoadRef: RefObject<number>) {
     const timer = setTimeout(async () => {
       const booksToSave = books.filter(b => !isBookEmpty(b));
       if (booksToSave.length > 0) {
-        localStorage.setItem('lumina_library', JSON.stringify(booksToSave));
-        localStorage.setItem('lumina_active_book', activeBookId);
+        localStorage.setItem(STORAGE_KEYS.library, JSON.stringify(booksToSave));
+        localStorage.setItem(STORAGE_KEYS.activeBook, activeBookId);
       } else {
-        localStorage.removeItem('lumina_library');
-        localStorage.removeItem('lumina_active_book');
+        localStorage.removeItem(STORAGE_KEYS.library);
+        localStorage.removeItem(STORAGE_KEYS.activeBook);
       }
 
       if (user && isSupabaseConfigured) {
@@ -30,17 +33,7 @@ export function useSync(lastCloudLoadRef: RefObject<number>) {
 
         setIsCloudSyncing(true);
         try {
-          for (const book of books) {
-            const { error } = await supabase.from('books').upsert({
-              id: book.id,
-              user_id: user.id,
-              title: book.title,
-              author: book.author,
-              chapters: book.chapters,
-              updated_at: new Date(book.updatedAt).toISOString(),
-            }, { onConflict: 'id' });
-            if (error) console.error('Sync error:', error);
-          }
+          await upsertBooks(books, user.id);
         } catch (e) {
           console.error('Cloud sync failed', e);
         } finally {
@@ -56,21 +49,12 @@ export function useSync(lastCloudLoadRef: RefObject<number>) {
     setIsSaving(true);
     const { books: currentBooks, user: currentUser } = useAppStore.getState();
     const { setIsCloudSyncing: setSyncing, setIsSaving: setSaving } = useUiStore.getState();
-    localStorage.setItem('lumina_library', JSON.stringify(currentBooks));
+    localStorage.setItem(STORAGE_KEYS.library, JSON.stringify(currentBooks));
 
     if (currentUser && isSupabaseConfigured) {
       setSyncing(true);
       try {
-        for (const book of currentBooks) {
-          await supabase.from('books').upsert({
-            id: book.id,
-            user_id: currentUser.id,
-            title: book.title,
-            author: book.author,
-            chapters: book.chapters,
-            updated_at: new Date(book.updatedAt).toISOString(),
-          }, { onConflict: 'id' });
-        }
+        await upsertBooks(currentBooks, currentUser.id);
       } finally {
         setSyncing(false);
       }

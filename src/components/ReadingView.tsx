@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Book } from '../types';
@@ -11,12 +11,6 @@ interface ReadingViewProps {
 
 export default function ReadingView({ book, onClose }: ReadingViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   return (
     <motion.div
