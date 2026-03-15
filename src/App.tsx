@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import Editor from './components/Editor';
@@ -18,7 +18,7 @@ const isBookEmpty = (book: Book) =>
   book.chapters.every(c => !c.content.trim());
 
 const createNewBook = (title: string = '', author: string = ''): Book => ({
-  id: Math.random().toString(36).substring(7),
+  id: crypto.randomUUID(),
   title,
   author,
   updatedAt: Date.now(),
@@ -43,14 +43,14 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  // Timestamp последней загрузки из облака — auto-save пропускает cloud sync
+  // в течение 3с после загрузки, чтобы не записывать обратно то, что только что прочитали
+  const lastCloudLoadRef = useRef(0);
 
-  // Auth listener
+  // Auth listener — только onAuthStateChange (он сам испускает INITIAL_SESSION,
+  // поэтому getSession() не нужен и не вызывает двойной loadData)
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -79,7 +79,7 @@ export default function App() {
               const booksToMigrate = localBooks.filter(b => !isBookEmpty(b));
               for (const book of booksToMigrate) {
                 await supabase.from('books').upsert({
-                  id: book.id.length > 20 ? book.id : undefined,
+                  id: book.id,
                   user_id: user.id,
                   title: book.title,
                   author: book.author,
@@ -108,11 +108,14 @@ export default function App() {
               updatedAt: new Date(b.updated_at).getTime(),
               chapters: b.chapters,
             }));
+            // Помечаем время загрузки, чтобы auto-save не писал обратно то, что только получили
+            lastCloudLoadRef.current = Date.now();
             setBooks(formattedBooks);
             setActiveBookId(formattedBooks[0].id);
             setActiveChapterId(formattedBooks[0].chapters[0].id);
           } else {
             const defaultBook = createNewBook('', user.user_metadata?.full_name || '');
+            lastCloudLoadRef.current = Date.now();
             setBooks([defaultBook]);
             setActiveBookId(defaultBook.id);
             setActiveChapterId(defaultBook.chapters[0].id);
@@ -172,22 +175,23 @@ export default function App() {
       }
 
       if (user && isSupabaseConfigured) {
+        // Пропускаем cloud-запись, если данные только что пришли из облака
+        if (Date.now() - lastCloudLoadRef.current < 3000) return;
+
         setIsCloudSyncing(true);
         try {
-          // Sync all books to cloud
-          // In a real app, we'd only sync the changed book, but for simplicity:
           for (const book of books) {
             const { error } = await supabase
               .from('books')
               .upsert({
-                id: book.id.length > 20 ? book.id : undefined, // Supabase expects UUID or it generates one
+                id: book.id,
                 user_id: user.id,
                 title: book.title,
                 author: book.author,
                 chapters: book.chapters,
                 updated_at: new Date(book.updatedAt).toISOString(),
               }, { onConflict: 'id' });
-            
+
             if (error) console.error('Sync error:', error);
           }
         } catch (e) {
@@ -256,7 +260,7 @@ export default function App() {
   };
 
   const handleAddChapter = () => {
-    const newId = Math.random().toString(36).substring(7);
+    const newId = crypto.randomUUID();
     const newChapter: Chapter = {
       id: newId,
       title: `Глава ${activeBook.chapters.length + 1}`,
@@ -325,13 +329,13 @@ export default function App() {
       try {
         for (const book of books) {
           await supabase.from('books').upsert({
-            id: book.id.length > 20 ? book.id : undefined,
+            id: book.id,
             user_id: user.id,
             title: book.title,
             author: book.author,
             chapters: book.chapters,
             updated_at: new Date(book.updatedAt).toISOString(),
-          });
+          }, { onConflict: 'id' });
         }
       } finally {
         setIsCloudSyncing(false);
