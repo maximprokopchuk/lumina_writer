@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Book } from '../types';
+import { sanitizeHtml } from '../utils/sanitize';
 
 interface ReadingViewProps {
   book: Book;
@@ -61,7 +62,7 @@ export default function ReadingView({ book, onClose }: ReadingViewProps) {
             {/* Chapter content */}
             <div
               className="reading-content font-serif text-[17px] leading-[1.9] text-stone-800"
-              dangerouslySetInnerHTML={{ __html: chapter.content || '' }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(chapter.content || '') }}
             />
           </div>
         ))}

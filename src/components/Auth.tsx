@@ -1,42 +1,24 @@
 import { useState } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { LogIn, LogOut, User as UserIcon, Github, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { User as UserIcon, AlertCircle } from 'lucide-react';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { useAppStore } from '../store/useAppStore';
+import { useAuth } from '../hooks/useAuth';
 
-interface AuthProps {
-  user: any;
-  onSignOut: () => void;
-}
-
-export default function Auth({ user, onSignOut }: AuthProps) {
+export default function Auth() {
+  const user = useAppStore(s => s.user);
+  const { signOut, signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
-    if (!isSupabaseConfigured) return;
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) throw error;
+      await signInWithGoogle();
     } catch (error) {
       console.error('Error logging in:', error);
       alert('Ошибка при входе. Проверьте настройки Supabase.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSignOut = async () => {
-    if (!isSupabaseConfigured) {
-      onSignOut();
-      return;
-    }
-    await supabase.auth.signOut();
-    onSignOut();
   };
 
   if (!isSupabaseConfigured) {
@@ -63,15 +45,14 @@ export default function Auth({ user, onSignOut }: AuthProps) {
             {user.user_metadata?.full_name || user.email}
           </span>
           <button
-            onClick={handleSignOut}
+            onClick={signOut}
             className="text-[9px] text-stone-400 hover:text-red-500 transition-colors text-left leading-tight cursor-pointer"
           >
             Выйти
           </button>
         </div>
-        {/* Mobile: tap avatar to sign out */}
         <button
-          onClick={handleSignOut}
+          onClick={signOut}
           className="sm:hidden text-[9px] text-stone-400 hover:text-red-500 transition-colors cursor-pointer leading-none"
           title="Выйти"
         >
