@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { Book } from '../types';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { useAppStore, createNewBook, isBookEmpty } from '../store/useAppStore';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { fetchBooks, upsertBooks } from '../lib/api';
+import { useAppStore } from '../store/useAppStore';
 import { useUiStore } from '../store/useUiStore';
+import { isBookEmpty, createNewBook } from '../utils/book';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 
 export function useBooks() {
   const user = useAppStore(s => s.user);
@@ -22,48 +25,27 @@ export function useBooks() {
         try {
           // Migration: read localStorage once and synchronously delete it so a
           // second effect invocation (onAuthStateChange can fire twice) doesn't duplicate.
-          const localRaw = localStorage.getItem('lumina_library');
-          localStorage.removeItem('lumina_library');
-          localStorage.removeItem('lumina_active_book');
-          localStorage.removeItem('lumina_book');
+          const localRaw = localStorage.getItem(STORAGE_KEYS.library);
+          localStorage.removeItem(STORAGE_KEYS.library);
+          localStorage.removeItem(STORAGE_KEYS.activeBook);
+          localStorage.removeItem(STORAGE_KEYS.legacyBook);
 
           if (localRaw) {
             try {
               const localBooks: Book[] = JSON.parse(localRaw);
-              for (const book of localBooks.filter(b => !isBookEmpty(b))) {
-                await supabase.from('books').upsert({
-                  id: book.id,
-                  user_id: user.id,
-                  title: book.title,
-                  author: book.author,
-                  chapters: book.chapters,
-                  updated_at: new Date(book.updatedAt).toISOString(),
-                }, { onConflict: 'id' });
-              }
+              await upsertBooks(localBooks.filter(b => !isBookEmpty(b)), user.id);
             } catch (e) {
               console.error('Migration error:', e);
             }
           }
 
-          const { data, error } = await supabase
-            .from('books')
-            .select('*')
-            .order('updated_at', { ascending: false });
+          const data = await fetchBooks();
 
-          if (error) throw error;
-
-          if (data && data.length > 0) {
-            const formatted: Book[] = data.map(b => ({
-              id: b.id,
-              title: b.title,
-              author: b.author,
-              updatedAt: new Date(b.updated_at).getTime(),
-              chapters: b.chapters,
-            }));
+          if (data.length > 0) {
             lastCloudLoadRef.current = Date.now();
-            setBooks(formatted);
-            setActiveBookId(formatted[0].id);
-            setActiveChapterId(formatted[0].chapters[0].id);
+            setBooks(data);
+            setActiveBookId(data[0].id);
+            setActiveChapterId(data[0].chapters[0].id);
           } else {
             const defaultBook = createNewBook('', user.user_metadata?.full_name || '');
             lastCloudLoadRef.current = Date.now();
@@ -85,7 +67,7 @@ export function useBooks() {
     const loadLocal = () => {
       const localBooks = getLocalBooks();
       setBooks(localBooks);
-      const lastActive = localStorage.getItem('lumina_active_book');
+      const lastActive = localStorage.getItem(STORAGE_KEYS.activeBook);
       const initialBookId =
         lastActive && localBooks.some(b => b.id === lastActive)
           ? lastActive
@@ -96,11 +78,11 @@ export function useBooks() {
     };
 
     const getLocalBooks = (): Book[] => {
-      const saved = localStorage.getItem('lumina_library');
+      const saved = localStorage.getItem(STORAGE_KEYS.library);
       if (saved) {
         try { return JSON.parse(saved); } catch (e) {}
       }
-      const oldBook = localStorage.getItem('lumina_book');
+      const oldBook = localStorage.getItem(STORAGE_KEYS.legacyBook);
       if (oldBook) {
         try {
           const parsed = JSON.parse(oldBook);

@@ -1,6 +1,4 @@
 import { useEffect } from 'react';
-import { useAppStore } from '../store/useAppStore';
-
 import { useUiStore } from '../store/useUiStore';
 
 export function useKeyboard() {

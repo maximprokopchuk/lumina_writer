@@ -9,7 +9,7 @@ import ReadingView from './ReadingView';
 
 import { useAppStore } from '../store/useAppStore';
 import { useUiStore } from '../store/useUiStore';
-import { exportToPDF, exportToDOCX, exportToFB2 } from '../utils/export';
+import { useExport } from '../hooks/useExport';
 
 interface AppLayoutProps {
   manualSave: () => void;
@@ -25,8 +25,7 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
   const setIsLibraryOpen = useUiStore(s => s.setIsLibraryOpen);
   const isMobileSidebarOpen = useUiStore(s => s.isMobileSidebarOpen);
   const setIsMobileSidebarOpen = useUiStore(s => s.setIsMobileSidebarOpen);
-  const setIsExporting = useUiStore(s => s.setIsExporting);
-  
+
   const getActiveBook = useAppStore(s => s.getActiveBook);
   const getActiveChapter = useAppStore(s => s.getActiveChapter);
   const updateBookMeta = useAppStore(s => s.updateBookMeta);
@@ -39,23 +38,7 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
   const activeBook = getActiveBook();
   const activeChapter = getActiveChapter();
 
-  const handleExportPDF = () => {
-    setIsExporting(true);
-    exportToPDF(getActiveBook());
-    setTimeout(() => setIsExporting(false), 1000);
-  };
-
-  const handleExportDOCX = async () => {
-    setIsExporting(true);
-    try { await exportToDOCX(getActiveBook()); }
-    finally { setIsExporting(false); }
-  };
-
-  const handleExportFB2 = () => {
-    setIsExporting(true);
-    exportToFB2(getActiveBook());
-    setTimeout(() => setIsExporting(false), 1000);
-  };
+  const { handleExportPDF, handleExportDOCX, handleExportFB2 } = useExport();
 
   if (books.length === 0 && !isCloudSyncing) {
     return (
