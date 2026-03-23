@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Cursor/Claude local working files (do not commit)
+.claude/worktrees/
+.claude/settings.local.json
