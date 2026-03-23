@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Book, Chapter } from '../types';
 import { isBookEmpty, createNewBook } from '../utils/book';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export { isBookEmpty, createNewBook };
 
@@ -21,7 +22,7 @@ interface AppState {
   activeChapterId: string;
   setActiveChapterId: (id: string) => void;
 
-  // Book actions (pure state mutations — no async side effects)
+  // Book actions (some actions also sync with the cloud)
   addBook: () => void;
   deleteBook: (id: string) => void;
   selectBook: (id: string) => void;
@@ -60,14 +61,40 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   deleteBook: (id: string) => {
-    const { books, activeBookId, setActiveBookId, setActiveChapterId } = get();
-    if (books.length <= 1) return;
+    const { books, user, activeBookId, setActiveBookId, setActiveChapterId } = get();
+
+    const deleteFromCloud = () => {
+      if (!isSupabaseConfigured || !user) return;
+      // RLS policy ensures a user can delete only their own rows.
+      supabase
+        .from('books')
+        .delete()
+        .eq('id', id)
+        .then(
+          ({ error }) => {
+            if (error) console.error('Failed to delete book from cloud:', error);
+          },
+          e => console.error('Failed to delete book from cloud:', e)
+        );
+    };
+
+    if (books.length <= 1) {
+      // Keep app usable: replace the last deleted book with a new empty one.
+      const fresh = createNewBook('', user?.user_metadata?.full_name || '');
+      set({ books: [fresh] });
+      setActiveBookId(fresh.id);
+      setActiveChapterId(fresh.chapters[0].id);
+      deleteFromCloud();
+      return;
+    }
+
     const newBooks = books.filter(b => b.id !== id);
     set({ books: newBooks });
     if (activeBookId === id) {
       setActiveBookId(newBooks[0].id);
       setActiveChapterId(newBooks[0].chapters[0].id);
     }
+    deleteFromCloud();
   },
 
   selectBook: (id: string) => {
