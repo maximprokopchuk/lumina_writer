@@ -18,6 +18,10 @@ interface AppState {
   setActiveBookId: (id: string) => void;
   activeChapterId: string;
   chapterNavigation: Record<string, string>;
+  lastDeletedBook: Book | null;
+  lastDeletedChapter: { bookId: string; chapter: Chapter; index: number } | null;
+  restoreBook: () => void;
+  restoreChapter: () => void;
   setActiveChapterId: (id: string) => void;
   addBook: () => void;
   deleteBook: (id: string) => void;
@@ -46,6 +50,7 @@ export const useAppStore = create<AppState>((set, get) => {
     setUser: user => set({ user, authReady: true }),
     books: [initialBook], activeBookId: initialBook.id, activeChapterId: initialBook.chapters[0].id,
     chapterNavigation: {},
+    lastDeletedBook: null, lastDeletedChapter: null,
     setBooks: books => set(state => ({ books: typeof books === 'function' ? books(state.books) : books })),
     setActiveBookId: activeBookId => set({ activeBookId }),
     setActiveChapterId: id => set(state => ({ activeChapterId: id,
@@ -62,9 +67,26 @@ export const useAppStore = create<AppState>((set, get) => {
       const remaining = state.books.filter(b => b.id !== id);
       const books = remaining.length ? remaining : [createPlaceholder(state.user?.user_metadata?.full_name || '')];
       const active = books.find(b => b.id === state.activeBookId) || books[0];
-      set({ books, activeBookId: active.id,
+      set({ books, activeBookId: active.id, lastDeletedBook: state.books.find(b => b.id === id)!,
         activeChapterId: active.chapters.some(c => c.id === state.activeChapterId)
           ? state.activeChapterId : active.chapters[0].id });
+    },
+    restoreBook: () => {
+      const state = get(); const deleted = state.lastDeletedBook;
+      if (!deleted) return;
+      // Undo is an explicit new insertion, even if the cloud deletion already completed.
+      const restored = { ...deleted, id: crypto.randomUUID(), cloudVersion: undefined, isPlaceholder: false, updatedAt: Date.now() };
+      set({ books: [restored, ...state.books.filter(b => !b.isPlaceholder)], lastDeletedBook: null,
+        activeBookId: restored.id, activeChapterId: restored.chapters[0].id });
+    },
+    restoreChapter: () => {
+      const deleted = get().lastDeletedChapter;
+      if (!deleted || !get().books.some(b => b.id === deleted.bookId)) return;
+      changeBook(deleted.bookId, book => {
+        const chapters = [...book.chapters]; chapters.splice(deleted.index, 0, deleted.chapter);
+        return { ...book, chapters };
+      });
+      set({ lastDeletedChapter: null, activeBookId: deleted.bookId, activeChapterId: deleted.chapter.id });
     },
     selectBook: id => {
       const state = get(); const book = state.books.find(b => b.id === id);
@@ -81,6 +103,8 @@ export const useAppStore = create<AppState>((set, get) => {
     deleteChapter: id => {
       const state = get(); const book = state.getActiveBook();
       if (book.chapters.length <= 1 || !book.chapters.some(c => c.id === id)) return;
+      set({ lastDeletedChapter: { bookId: book.id, chapter: book.chapters.find(c => c.id === id)!,
+        index: book.chapters.findIndex(c => c.id === id) } });
       changeBook(book.id, b => ({ ...b, chapters: b.chapters.filter(c => c.id !== id) }));
       if (state.activeChapterId === id) get().setActiveChapterId(get().getActiveBook().chapters[0].id);
     },

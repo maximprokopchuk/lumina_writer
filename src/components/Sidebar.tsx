@@ -13,6 +13,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const setIsLibraryOpen = useUiStore(s => s.setIsLibraryOpen);
   const addChapter = useAppStore(s => s.addChapter);
   const deleteChapter = useAppStore(s => s.deleteChapter);
+  const lastDeletedChapter = useAppStore(s => s.lastDeletedChapter);
   const getActiveBook = useAppStore(s => s.getActiveBook);
 
   const activeBook = getActiveBook();
@@ -69,9 +70,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
                 ? 'bg-stone-200 text-stone-900 shadow-sm'
                 : 'hover:bg-stone-100 text-stone-600'
             )}
-            onClick={() => handleSelectChapter(chapter.id)}
           >
-            <div className="flex items-center gap-2 overflow-hidden">
+            <button onClick={() => handleSelectChapter(chapter.id)} aria-current={activeChapterId === chapter.id ? 'page' : undefined}
+              className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left">
               <ChevronRight
                 size={14}
                 className={cn('transition-transform', activeChapterId === chapter.id ? 'rotate-90' : '')}
@@ -79,11 +80,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <span className="truncate text-sm font-medium">
                 {chapter.title || 'Без названия'}
               </span>
-            </div>
+            </button>
             {chapters.length > 1 && (
               <button
                 onClick={(e) => { e.stopPropagation(); deleteChapter(chapter.id); }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-opacity"
+                aria-label={`Удалить главу ${chapter.title}`}
+                className="p-1 text-stone-400 hover:text-red-500 focus-visible:text-red-500"
               >
                 <Trash2 size={14} />
               </button>
@@ -91,6 +93,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
           </div>
         ))}
       </div>
+
+      {lastDeletedChapter && (
+        <button onClick={() => useAppStore.getState().restoreChapter()} className="mx-3 mb-3 rounded-md border border-stone-200 px-2 py-2 text-xs text-stone-600 hover:bg-stone-100">
+          Отменить удаление главы
+        </button>
+      )}
 
       <div className="p-4 border-t border-stone-200 flex items-center justify-center">
         <img src="/logo.svg" alt="Lumina Writer" className="h-7 select-none opacity-80" draggable={false} />

@@ -14,6 +14,7 @@ export function useBooks() {
 
   useEffect(() => {
     if (!authReady) return;
+    useAppStore.setState({ lastDeletedBook: null, lastDeletedChapter: null });
     const scope = userId || 'guest';
     const library = new LocalLibrary(scope);
     const placeholder = createPlaceholder(useAppStore.getState().user?.user_metadata?.full_name || '');
