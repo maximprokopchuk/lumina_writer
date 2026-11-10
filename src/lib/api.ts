@@ -1,11 +1,10 @@
 import { supabase } from './supabase';
 import { Book } from '../types';
 
-export async function fetchBooks(userId?: string): Promise<Book[]> {
-  let query = supabase
+export async function fetchBooks(userId: string): Promise<Book[]> {
+  const query = supabase
     .from('books')
-    .select('*');
-  if (userId) query = query.eq('user_id', userId);
+    .select('*').eq('user_id', userId);
   const { data, error } = await query.order('updated_at', { ascending: false });
 
   if (error) throw error;
@@ -19,7 +18,6 @@ export async function fetchBooks(userId?: string): Promise<Book[]> {
     cloudVersion: b.updated_at,
   }));
 }
-
 export class SyncConflict extends Error {
   constructor() { super('Проект изменён на другом устройстве.'); }
 }
@@ -47,23 +45,4 @@ export async function deleteCloudBook(id: string, userId: string, baseVersion: s
     .eq('id', id).eq('user_id', userId).eq('updated_at', baseVersion).select('id');
   if (error) throw error;
   if (!data?.length) throw new SyncConflict();
-}
-
-export async function upsertBook(book: Book, userId: string): Promise<void> {
-  const { error } = await supabase.from('books').upsert({
-    id: book.id,
-    user_id: userId,
-    title: book.title,
-    author: book.author,
-    chapters: book.chapters,
-    updated_at: new Date(book.updatedAt).toISOString(),
-  }, { onConflict: 'id' });
-
-  if (error) throw error;
-}
-
-export async function upsertBooks(books: Book[], userId: string): Promise<void> {
-  for (const book of books) {
-    await upsertBook(book, userId);
-  }
 }

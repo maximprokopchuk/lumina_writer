@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { User as UserIcon, AlertCircle } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
-import { useAuth } from '../hooks/useAuth';
+import { signOut, signInWithGoogle } from '../hooks/useAuth';
+import { useUiStore } from '../store/useUiStore';
 
 export default function Auth() {
   const user = useAppStore(s => s.user);
-  const { signOut, signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const handleSignOut = async () => {
+    try { await signOut(); }
+    catch { useUiStore.setState({ syncNotice: 'Не удалось выйти из аккаунта. Повторите попытку.' }); }
+  };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -45,14 +49,14 @@ export default function Auth() {
             {user.user_metadata?.full_name || user.email}
           </span>
           <button
-            onClick={signOut}
+            onClick={handleSignOut}
             className="text-[9px] text-stone-400 hover:text-red-500 transition-colors text-left leading-tight cursor-pointer"
           >
             Выйти
           </button>
         </div>
         <button
-          onClick={signOut}
+          onClick={handleSignOut}
           className="sm:hidden text-[9px] text-stone-400 hover:text-red-500 transition-colors cursor-pointer leading-none"
           title="Выйти"
         >

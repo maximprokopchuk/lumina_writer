@@ -1,100 +1,92 @@
 import { useEffect, useRef } from 'react';
-import { Book } from '../types';
+import { fetchBooks, saveBook, deleteCloudBook } from '../lib/api';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { fetchBooks, upsertBooks } from '../lib/api';
-import { useAppStore } from '../store/useAppStore';
+import { LocalLibrary, navigationKey, validBook } from '../lib/local-library';
+import { SyncEngine } from '../lib/sync-engine';
+import { LocalBook } from '../types';
+import { createPlaceholder, useAppStore } from '../store/useAppStore';
 import { useUiStore } from '../store/useUiStore';
-import { isBookEmpty, createNewBook } from '../utils/book';
-import { STORAGE_KEYS } from '../lib/storage-keys';
 
 export function useBooks() {
-  const user = useAppStore(s => s.user);
-  const setBooks = useAppStore(s => s.setBooks);
-  const setActiveBookId = useAppStore(s => s.setActiveBookId);
-  const setActiveChapterId = useAppStore(s => s.setActiveChapterId);
-  const setIsCloudSyncing = useUiStore(s => s.setIsCloudSyncing);
-
-  // Timestamp of last cloud load — auto-save skips cloud write within 3s of a load
-  // to avoid writing back what we just read.
-  const lastCloudLoadRef = useRef(0);
+  const userId = useAppStore(s => s.user?.id);
+  const authReady = useAppStore(s => s.authReady);
+  const engineRef = useRef<SyncEngine | null>(null);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (user && isSupabaseConfigured) {
-        setIsCloudSyncing(true);
-        try {
-          // Migration: read localStorage once and synchronously delete it so a
-          // second effect invocation (onAuthStateChange can fire twice) doesn't duplicate.
-          const localRaw = localStorage.getItem(STORAGE_KEYS.library);
-          localStorage.removeItem(STORAGE_KEYS.library);
-          localStorage.removeItem(STORAGE_KEYS.activeBook);
-          localStorage.removeItem(STORAGE_KEYS.legacyBook);
-
-          if (localRaw) {
-            try {
-              const localBooks: Book[] = JSON.parse(localRaw);
-              await upsertBooks(localBooks.filter(b => !isBookEmpty(b)), user.id);
-            } catch (e) {
-              console.error('Migration error:', e);
-            }
-          }
-
-          const data = await fetchBooks();
-
-          if (data.length > 0) {
-            lastCloudLoadRef.current = Date.now();
-            setBooks(data);
-            setActiveBookId(data[0].id);
-            setActiveChapterId(data[0].chapters[0].id);
-          } else {
-            const defaultBook = createNewBook('', user.user_metadata?.full_name || '');
-            lastCloudLoadRef.current = Date.now();
-            setBooks([defaultBook]);
-            setActiveBookId(defaultBook.id);
-            setActiveChapterId(defaultBook.chapters[0].id);
-          }
-        } catch (error) {
-          console.error('Error loading from cloud:', error);
-          loadLocal();
-        } finally {
-          setIsCloudSyncing(false);
-        }
-      } else {
-        loadLocal();
+    if (!authReady) return;
+    const scope = userId || 'guest';
+    const library = new LocalLibrary(scope);
+    const placeholder = createPlaceholder(useAppStore.getState().user?.user_metadata?.full_name || '');
+    let publishing = false;
+    let navigation: { bookId?: string; chapterId?: string; chapters?: Record<string, string> } = {};
+    try { navigation = JSON.parse(localStorage.getItem(navigationKey(scope)) || '{}'); } catch { /* Navigation is optional. */ }
+    let first = true;
+    const engine = new SyncEngine(library, userId && isSupabaseConfigured ? {
+      fetch: () => fetchBooks(userId), save: (book, version) => saveBook(book, userId, version),
+      delete: (id, version) => deleteCloudBook(id, userId, version),
+    } : null, snapshot => {
+      publishing = true;
+      try {
+        const current = useAppStore.getState();
+        const books = snapshot.books.length ? snapshot.books : [placeholder];
+        const desiredId = first ? navigation.bookId : current.activeBookId;
+        const active = books.find(b => b.id === desiredId) || books[0];
+        const desiredChapter = first ? navigation.chapterId : current.activeChapterId;
+        useAppStore.setState({ books, activeBookId: active.id,
+          activeChapterId: active.chapters.find(c => c.id === desiredChapter)?.id || active.chapters[0].id,
+          ...(first ? { chapterNavigation: navigation.chapters || {} } : {}) });
+        first = snapshot.books.length === 0 && !!navigation.bookId;
+        useUiStore.setState({ isCloudSyncing: snapshot.syncing, hasPendingChanges: snapshot.pending,
+          localSaveError: snapshot.localError, cloudSaveError: snapshot.cloudError, syncNotice: snapshot.notice });
+      } finally { publishing = false; }
+    });
+    engineRef.current = engine;
+    const unsubscribe = useAppStore.subscribe((state, previous) => {
+      if (publishing) return;
+      for (const book of previous.books) {
+        if (!state.books.some(b => b.id === book.id)) engine.remove(book.id);
       }
-    };
-
-    const loadLocal = () => {
-      const localBooks = getLocalBooks();
-      setBooks(localBooks);
-      const lastActive = localStorage.getItem(STORAGE_KEYS.activeBook);
-      const initialBookId =
-        lastActive && localBooks.some(b => b.id === lastActive)
-          ? lastActive
-          : localBooks[0].id;
-      setActiveBookId(initialBookId);
-      const initialBook = localBooks.find(b => b.id === initialBookId) || localBooks[0];
-      setActiveChapterId(initialBook.chapters[0].id);
-    };
-
-    const getLocalBooks = (): Book[] => {
-      const saved = localStorage.getItem(STORAGE_KEYS.library);
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
+      for (const book of state.books) {
+        if (previous.books.find(b => b.id === book.id) !== book) engine.edit(book);
       }
-      const oldBook = localStorage.getItem(STORAGE_KEYS.legacyBook);
-      if (oldBook) {
-        try {
-          const parsed = JSON.parse(oldBook);
-          return [{ ...parsed, id: 'legacy', updatedAt: Date.now() }];
-        } catch (e) {}
+      if (state.activeBookId !== previous.activeBookId || state.activeChapterId !== previous.activeChapterId) {
+        try { localStorage.setItem(navigationKey(scope), JSON.stringify({ bookId: state.activeBookId,
+          chapterId: state.activeChapterId, chapters: state.chapterNavigation })); } catch { /* Manuscripts have their own error status. */ }
       }
-      return [createNewBook('', user?.user_metadata?.full_name || '')];
+    });
+    void engine.start();
+    if (userId) {
+      // Copy guest drafts durably before removing guest entries. Preserve legacy backups.
+      try {
+        const guest = new LocalLibrary('guest'); guest.migrateLegacy();
+        const imported = engine.import(guest.read());
+        for (const id of imported) guest.remove(id);
+      } catch {
+        useUiStore.setState({ syncNotice: 'Не удалось перенести часть локальных проектов. Исходные черновики сохранены.' });
+      }
+    }
+    const refresh = () => { if (document.visibilityState === 'visible') void engine.sync(); };
+    const receive = (event: StorageEvent) => {
+      if (!event.key?.startsWith(library.prefix)) return;
+      if (!event.newValue) { void engine.sync(); return; }
+      try {
+        const entry = JSON.parse(event.newValue) as LocalBook;
+        if (validBook(entry.book) && typeof entry.dirty === 'boolean' && typeof entry.deleted === 'boolean'
+          && typeof entry.changeId === 'string') engine.receiveExternal(entry);
+      } catch { /* Do not replace a draft with malformed data from another tab. */ }
     };
-
-    loadData();
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Zustand setters are stable references — safe to omit from deps array.
-
-  return { lastCloudLoadRef };
+    window.addEventListener('online', refresh);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('storage', receive);
+    document.addEventListener('visibilitychange', refresh);
+    const poll = setInterval(refresh, 30_000);
+    return () => {
+      unsubscribe(); engine.stop(); engineRef.current = null; clearInterval(poll);
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('storage', receive);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [userId, authReady]);
+  return { engineRef };
 }

@@ -17,6 +17,10 @@ interface AppLayoutProps {
 
 export default function AppLayout({ manualSave }: AppLayoutProps) {
   const isCloudSyncing = useUiStore(s => s.isCloudSyncing);
+  const localSaveError = useUiStore(s => s.localSaveError);
+  const cloudSaveError = useUiStore(s => s.cloudSaveError);
+  const syncNotice = useUiStore(s => s.syncNotice);
+  const authReady = useAppStore(s => s.authReady);
   const isFocusMode = useUiStore(s => s.isFocusMode);
   const setIsFocusMode = useUiStore(s => s.setIsFocusMode);
   const isReadingMode = useUiStore(s => s.isReadingMode);
@@ -40,7 +44,7 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
 
   const { handleExportPDF, handleExportDOCX, handleExportFB2 } = useExport();
 
-  if (books.length === 0 && !isCloudSyncing) {
+  if (!authReady || (books.length === 0 && !isCloudSyncing)) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-stone-100 font-serif text-stone-400">
         Загрузка...
@@ -122,7 +126,14 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
           </motion.button>
         )}
 
-        <main className="flex-1 overflow-y-auto px-4 py-6 md:p-12 scroll-smooth">
+        {(localSaveError || cloudSaveError || syncNotice) && (
+          <div role={localSaveError || cloudSaveError ? 'alert' : 'status'}
+            className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+            <span>{localSaveError || cloudSaveError || syncNotice}</span>
+            <button onClick={manualSave} className="shrink-0 underline underline-offset-4">Повторить сохранение</button>
+          </div>
+        )}
+        <main className="flex-1 overflow-y-auto px-4 py-6 md:p-12">
           <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 pb-32">
             {!isFocusMode && (
               <motion.div

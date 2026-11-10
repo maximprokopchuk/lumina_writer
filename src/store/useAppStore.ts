@@ -1,200 +1,100 @@
 import { create } from 'zustand';
+import type { User } from '@supabase/supabase-js';
 import { Book, Chapter } from '../types';
 import { isBookEmpty, createNewBook } from '../utils/book';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 export { isBookEmpty, createNewBook };
-
-// ---------------------------------------------------------------------------
-// Store
-// ---------------------------------------------------------------------------
+export const createPlaceholder = (author = ''): Book => ({ ...createNewBook('', author), isPlaceholder: true });
+const initialBook = createPlaceholder();
 
 interface AppState {
-  // Auth
-  user: any | null;
-  setUser: (user: any | null) => void;
-
-  // Books
+  user: User | null;
+  authReady: boolean;
+  setUser: (user: User | null) => void;
   books: Book[];
   setBooks: (books: Book[] | ((prev: Book[]) => Book[])) => void;
   activeBookId: string;
   setActiveBookId: (id: string) => void;
   activeChapterId: string;
+  chapterNavigation: Record<string, string>;
   setActiveChapterId: (id: string) => void;
-
-  // Book actions (some actions also sync with the cloud)
   addBook: () => void;
   deleteBook: (id: string) => void;
   selectBook: (id: string) => void;
   addChapter: () => void;
   deleteChapter: (id: string) => void;
-  updateChapterContent: (content: string) => void;
+  updateChapterContent: (content: string, bookId?: string, chapterId?: string) => void;
   updateChapterTitle: (title: string) => void;
   updateBookMeta: (field: 'title' | 'author', value: string) => void;
-
-  // Derived state helpers
   getActiveBook: () => Book;
   getActiveChapter: () => Chapter;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
-  user: null,
-  setUser: (user) => set({ user }),
-
-  books: [],
-  setBooks: (books) =>
-    set(state => ({ books: typeof books === 'function' ? books(state.books) : books })),
-  activeBookId: '',
-  setActiveBookId: (activeBookId) => set({ activeBookId }),
-  activeChapterId: '',
-  setActiveChapterId: (activeChapterId) => set({ activeChapterId }),
-
-  // ---- Book actions -------------------------------------------------------
-
-  addBook: () => {
-    const { user, books, setActiveBookId, setActiveChapterId } = get();
-    const defaultAuthor = user?.user_metadata?.full_name || '';
-    const newBook = createNewBook('', defaultAuthor);
-    set({ books: [newBook, ...books] });
-    setActiveBookId(newBook.id);
-    setActiveChapterId(newBook.chapters[0].id);
-  },
-
-  deleteBook: (id: string) => {
-    const { books, user, activeBookId, setActiveBookId, setActiveChapterId } = get();
-
-    const deleteFromCloud = () => {
-      if (!isSupabaseConfigured || !user) return;
-      // RLS policy ensures a user can delete only their own rows.
-      supabase
-        .from('books')
-        .delete()
-        .eq('id', id)
-        .then(
-          ({ error }) => {
-            if (error) console.error('Failed to delete book from cloud:', error);
-          },
-          e => console.error('Failed to delete book from cloud:', e)
-        );
-    };
-
-    if (books.length <= 1) {
-      // Keep app usable: replace the last deleted book with a new empty one.
-      const fresh = createNewBook('', user?.user_metadata?.full_name || '');
-      set({ books: [fresh] });
-      setActiveBookId(fresh.id);
-      setActiveChapterId(fresh.chapters[0].id);
-      deleteFromCloud();
-      return;
-    }
-
-    const newBooks = books.filter(b => b.id !== id);
-    set({ books: newBooks });
-    if (activeBookId === id) {
-      setActiveBookId(newBooks[0].id);
-      setActiveChapterId(newBooks[0].chapters[0].id);
-    }
-    deleteFromCloud();
-  },
-
-  selectBook: (id: string) => {
-    const { books, setActiveBookId, setActiveChapterId } = get();
-    setActiveBookId(id);
-    const book = books.find(b => b.id === id);
-    if (book) setActiveChapterId(book.chapters[0].id);
-  },
-
-  addChapter: () => {
-    const { activeBookId, activeChapterId: _ac, setActiveChapterId } = get();
-    const activeBook = get().getActiveBook();
-    const newId = crypto.randomUUID();
-    const newChapter: Chapter = {
-      id: newId,
-      title: `Глава ${activeBook.chapters.length + 1}`,
-      content: '',
-    };
-    set(state => ({
-      books: state.books.map(b =>
-        b.id === activeBookId
-          ? { ...b, chapters: [...b.chapters, newChapter], updatedAt: Date.now() }
-          : b
-      ),
-    }));
-    setActiveChapterId(newId);
-  },
-
-  deleteChapter: (id: string) => {
-    const { activeBookId, activeChapterId, setActiveChapterId } = get();
-    const activeBook = get().getActiveBook();
-    if (activeBook.chapters.length <= 1) return;
-    const newChapters = activeBook.chapters.filter(c => c.id !== id);
-    set(state => ({
-      books: state.books.map(b =>
-        b.id === activeBookId
-          ? { ...b, chapters: newChapters, updatedAt: Date.now() }
-          : b
-      ),
-    }));
-    if (activeChapterId === id) setActiveChapterId(newChapters[0].id);
-  },
-
-  updateChapterContent: (content: string) => {
-    const { activeBookId, activeChapterId } = get();
-    set(state => ({
-      books: state.books.map(b =>
-        b.id === activeBookId
-          ? {
-              ...b,
-              updatedAt: Date.now(),
-              chapters: b.chapters.map(c =>
-                c.id === activeChapterId ? { ...c, content } : c
-              ),
-            }
-          : b
-      ),
-    }));
-  },
-
-  updateChapterTitle: (title: string) => {
-    const { activeBookId, activeChapterId } = get();
-    set(state => ({
-      books: state.books.map(b =>
-        b.id === activeBookId
-          ? {
-              ...b,
-              updatedAt: Date.now(),
-              chapters: b.chapters.map(c =>
-                c.id === activeChapterId ? { ...c, title } : c
-              ),
-            }
-          : b
-      ),
-    }));
-  },
-
-  updateBookMeta: (field: 'title' | 'author', value: string) => {
-    const { activeBookId } = get();
-    set(state => ({
-      books: state.books.map(b =>
-        b.id === activeBookId ? { ...b, [field]: value, updatedAt: Date.now() } : b
-      ),
-    }));
-  },
-
-  // ---- Derived helpers ----------------------------------------------------
-
-  getActiveBook: () => {
-    const { books, activeBookId, user } = get();
-    return (
-      books.find(b => b.id === activeBookId) ||
-      books[0] ||
-      createNewBook('', user?.user_metadata?.full_name || '')
-    );
-  },
-
-  getActiveChapter: () => {
-    const { activeChapterId } = get();
-    const book = get().getActiveBook();
-    return book.chapters.find(c => c.id === activeChapterId) || book.chapters[0];
-  },
-}));
+export const useAppStore = create<AppState>((set, get) => {
+  const changeBook = (id: string, edit: (book: Book) => Book) => set(state => ({
+    books: state.books.map(book => {
+      if (book.id !== id) return book;
+      const next = edit(book);
+      if (next === book) return book;
+      return { ...next, updatedAt: Math.max(Date.now(), book.updatedAt + 1),
+        isPlaceholder: !!next.isPlaceholder && isBookEmpty(next) };
+    }),
+  }));
+  return {
+    user: null, authReady: !isSupabaseConfigured,
+    setUser: user => set({ user, authReady: true }),
+    books: [initialBook], activeBookId: initialBook.id, activeChapterId: initialBook.chapters[0].id,
+    chapterNavigation: {},
+    setBooks: books => set(state => ({ books: typeof books === 'function' ? books(state.books) : books })),
+    setActiveBookId: activeBookId => set({ activeBookId }),
+    setActiveChapterId: id => set(state => ({ activeChapterId: id,
+      chapterNavigation: { ...state.chapterNavigation, [state.activeBookId]: id } })),
+    addBook: () => {
+      const state = get();
+      const book = createNewBook('', state.user?.user_metadata?.full_name || '');
+      set({ books: [book, ...state.books.filter(b => !b.isPlaceholder)],
+        activeBookId: book.id, activeChapterId: book.chapters[0].id });
+    },
+    deleteBook: id => {
+      const state = get();
+      if (!state.books.some(b => b.id === id)) return;
+      const remaining = state.books.filter(b => b.id !== id);
+      const books = remaining.length ? remaining : [createPlaceholder(state.user?.user_metadata?.full_name || '')];
+      const active = books.find(b => b.id === state.activeBookId) || books[0];
+      set({ books, activeBookId: active.id,
+        activeChapterId: active.chapters.some(c => c.id === state.activeChapterId)
+          ? state.activeChapterId : active.chapters[0].id });
+    },
+    selectBook: id => {
+      const state = get(); const book = state.books.find(b => b.id === id);
+      if (!book) return;
+      const previous = state.chapterNavigation[id];
+      set({ activeBookId: id, activeChapterId: book.chapters.find(c => c.id === previous)?.id || book.chapters[0].id });
+    },
+    addChapter: () => {
+      const state = get(); const chapter = { id: crypto.randomUUID(),
+        title: `Глава ${state.getActiveBook().chapters.length + 1}`, content: '' };
+      changeBook(state.activeBookId, book => ({ ...book, isPlaceholder: false, chapters: [...book.chapters, chapter] }));
+      get().setActiveChapterId(chapter.id);
+    },
+    deleteChapter: id => {
+      const state = get(); const book = state.getActiveBook();
+      if (book.chapters.length <= 1 || !book.chapters.some(c => c.id === id)) return;
+      changeBook(book.id, b => ({ ...b, chapters: b.chapters.filter(c => c.id !== id) }));
+      if (state.activeChapterId === id) get().setActiveChapterId(get().getActiveBook().chapters[0].id);
+    },
+    updateChapterContent: (content, bookId = get().activeBookId, chapterId = get().activeChapterId) => {
+      changeBook(bookId, book => book.chapters.find(c => c.id === chapterId)?.content === content ? book : ({
+        ...book, chapters: book.chapters.map(c => c.id === chapterId ? { ...c, content } : c),
+      }));
+    },
+    updateChapterTitle: title => {
+      const { activeBookId, activeChapterId } = get();
+      changeBook(activeBookId, book => ({ ...book, chapters: book.chapters.map(c => c.id === activeChapterId ? { ...c, title } : c) }));
+    },
+    updateBookMeta: (field, value) => changeBook(get().activeBookId, book => ({ ...book, [field]: value })),
+    getActiveBook: () => get().books.find(b => b.id === get().activeBookId) || get().books[0] || initialBook,
+    getActiveChapter: () => get().getActiveBook().chapters.find(c => c.id === get().activeChapterId) || get().getActiveBook().chapters[0],
+  };
+});

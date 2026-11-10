@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 
 interface UiState {
+  hasPendingChanges: boolean;
+  localSaveError: string | null;
+  cloudSaveError: string | null;
+  syncNotice: string | null;
   isSaving: boolean;
   setIsSaving: (v: boolean) => void;
   isExporting: boolean;
@@ -18,6 +22,10 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
+  hasPendingChanges: false,
+  localSaveError: null,
+  cloudSaveError: null,
+  syncNotice: null,
   isSaving: false,
   setIsSaving: (isSaving) => set({ isSaving }),
   isExporting: false,

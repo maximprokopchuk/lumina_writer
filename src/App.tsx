@@ -7,8 +7,8 @@ import { useKeyboard } from './hooks/useKeyboard';
 export default function App() {
   // Bind all global side-effects and listeners
   useAuth();
-  const { lastCloudLoadRef } = useBooks();
-  const { manualSave } = useSync(lastCloudLoadRef);
+  const { engineRef } = useBooks();
+  const { manualSave } = useSync(engineRef);
   useKeyboard();
 
   // Render the presentational layout

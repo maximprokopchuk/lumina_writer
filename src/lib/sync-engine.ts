@@ -67,6 +67,12 @@ export class SyncEngine {
   remove(id: string) {
     const old = this.entries.get(id);
     if (!old || this.stopped) return;
+    if (old.book.isPlaceholder && !old.baseVersion) {
+      this.entries.delete(id);
+      try { this.library.remove(id); } catch { this.localFailures.add(id); }
+      this.emit();
+      return;
+    }
     const entry = { ...old, deleted: true, dirty: true, changeId: crypto.randomUUID() };
     this.entries.set(id, entry);
     this.persist(entry);

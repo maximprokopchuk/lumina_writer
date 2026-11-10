@@ -1,7 +1,6 @@
-import { FileText, File as FilePdf, Save, Maximize2, Cloud, CloudOff, Loader2, BookOpen, Menu } from 'lucide-react';
-import { cn } from '../utils/lib';
+import { FileText, File as FilePdf, Save, Maximize2, Loader2, BookOpen, Menu } from 'lucide-react';
 import Auth from './Auth';
-import { useAppStore } from '../store/useAppStore';
+import SaveStatus from './SaveStatus';
 import { useUiStore } from '../store/useUiStore';
 
 interface ToolbarProps {
@@ -12,10 +11,8 @@ interface ToolbarProps {
 }
 
 export default function Toolbar({ onSave, onExportPDF, onExportDOCX, onExportFB2 }: ToolbarProps) {
-  const user = useAppStore(s => s.user);
   const isSaving = useUiStore(s => s.isSaving);
   const isExporting = useUiStore(s => s.isExporting);
-  const isCloudSyncing = useUiStore(s => s.isCloudSyncing);
   const setIsFocusMode = useUiStore(s => s.setIsFocusMode);
   const setIsReadingMode = useUiStore(s => s.setIsReadingMode);
   const setIsMobileSidebarOpen = useUiStore(s => s.setIsMobileSidebarOpen);
@@ -102,29 +99,7 @@ export default function Toolbar({ onSave, onExportPDF, onExportDOCX, onExportFB2
 
         <div className="hidden sm:block h-6 w-px bg-stone-200 mx-1" />
 
-        <div className={cn(
-          'flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-          user
-            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-            : 'bg-stone-100 text-stone-500 border border-stone-200',
-        )}>
-          {isCloudSyncing ? (
-            <>
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0" />
-              <span className="hidden sm:inline">Синхронизация...</span>
-            </>
-          ) : user ? (
-            <>
-              <Cloud size={14} className="shrink-0" />
-              <span className="hidden sm:inline">Облако</span>
-            </>
-          ) : (
-            <>
-              <CloudOff size={14} className="shrink-0" />
-              <span className="hidden sm:inline">Локально</span>
-            </>
-          )}
-        </div>
+        <SaveStatus />
 
         <Auth />
       </div>
