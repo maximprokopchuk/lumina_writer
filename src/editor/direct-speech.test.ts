@@ -53,6 +53,13 @@ describe('direct speech', () => {
     editor.view.someProp('handleTextInput', handler => handler(editor.view, from, to, ' ', () => editor.state.tr));
     expect(editor.getText()).toBe('— ');
   });
+  it('keeps Shift+Enter as a line break inside a dialogue paragraph', () => {
+    create('<p>— Реплика</p>'); editor.commands.setDialogueMode(true);
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    editor.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true }));
+    expect(editor.state.doc.childCount).toBe(1);
+    expect(editor.getHTML()).toContain('<br>');
+  });
   it('formats a long chapter without dropping paragraphs', () => {
     const count = 1500;
     create(Array.from({ length: count }, (_, index) => `<p>Абзац ${index} — длинная история.</p>`).join(''));

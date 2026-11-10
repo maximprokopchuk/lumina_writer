@@ -48,3 +48,12 @@ it('preserves the other tab revision even if its storage event has not arrived y
   expect(contents).toContain('<p>Из вкладки А</p>');
   expect(contents).toContain('<p>Из вкладки Б</p>');
 });
+
+it('does not duplicate a legacy book when a partially failed migration is retried', () => {
+  const library = new LocalLibrary('guest');
+  localStorage.setItem('lumina_library', JSON.stringify([{ ...createNewBook('Старый проект'), id: 'legacy' }, { broken: true }]));
+  expect(() => library.migrateLegacy()).toThrow();
+  expect(() => library.migrateLegacy()).toThrow();
+  expect(library.read()).toHaveLength(1);
+  expect(localStorage.getItem('lumina:v2:legacy-migrated')).toBeNull();
+});

@@ -114,10 +114,15 @@ export class LocalLibrary {
     const raw = saved ? JSON.parse(saved) : legacy ? [JSON.parse(legacy)] : [];
     if (!Array.isArray(raw)) throw new Error('Некорректный формат старой библиотеки.');
     const existing = new Set(this.read().map(e => e.book.id));
-    for (const value of raw) {
+    for (const [index, value] of raw.entries()) {
       const book = { author: '', updatedAt: Date.now(), ...value };
       if (!validBook(book)) throw new Error('Старая библиотека содержит повреждённый проект.');
-      if (!uuid.test(book.id)) book.id = crypto.randomUUID();
+      if (!uuid.test(book.id)) {
+        const mappingKey = `lumina:v2:legacy-id:${index}`;
+        const mapped = this.storage.getItem(mappingKey);
+        book.id = mapped && uuid.test(mapped) ? mapped : crypto.randomUUID();
+        this.storage.setItem(mappingKey, book.id);
+      }
       if (!existing.has(book.id)) this.write(newLocalBook(book));
     }
     // Keep original keys as a backup. Mark migration only after every write succeeds.

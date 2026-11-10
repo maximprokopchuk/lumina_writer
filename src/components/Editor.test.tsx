@@ -49,3 +49,16 @@ it('restores the selection when returning to a chapter', async () => {
   await mount();
   expect(current.state.selection.from).toBe(8);
 });
+
+it('runs the keyboard command and enables dialogue through the actual toolbar', async () => {
+  await mount();
+  act(() => current.commands.setTextSelection(4));
+  act(() => current.view.dom.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'Enter', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true,
+  })));
+  expect(current.state.doc.firstChild?.textContent).toBe('— Первая реплика');
+  const dialogue = [...host.querySelectorAll('button')].find(b => b.textContent === 'Диалог')!;
+  await act(async () => dialogue.click());
+  expect(current.storage.directSpeech.enabled).toBe(true);
+  expect(dialogue.getAttribute('aria-pressed')).toBe('true');
+});

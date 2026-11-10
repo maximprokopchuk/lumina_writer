@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Book } from '../types';
+import { validBook } from './local-library';
 
 export async function fetchBooks(userId: string): Promise<Book[]> {
   const query = supabase
@@ -9,15 +10,18 @@ export async function fetchBooks(userId: string): Promise<Book[]> {
 
   if (error) throw error;
 
-  return (data || []).map(b => ({
+  const books: Book[] = (data || []).map(b => ({
     id: b.id,
     title: b.title,
-    author: b.author,
+    author: b.author ?? '',
     updatedAt: new Date(b.updated_at).getTime(),
     chapters: b.chapters,
     cloudVersion: b.updated_at,
   }));
+  if (books.some(book => !validBook(book))) throw new Error('Облачная библиотека содержит некорректный проект. Локальные данные сохранены.');
+  return books;
 }
+
 export class SyncConflict extends Error {
   constructor() { super('Проект изменён на другом устройстве.'); }
 }
