@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User as UserIcon, AlertCircle } from 'lucide-react';
+import { User as UserIcon } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
 import { signOut, signInWithGoogle } from '../hooks/useAuth';

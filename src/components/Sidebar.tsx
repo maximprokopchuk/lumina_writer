@@ -1,4 +1,6 @@
 import { Plus, Trash2, Book as BookIcon, ChevronRight, Library as LibraryIcon, X } from 'lucide-react';
+import { memo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { cn } from '../utils/lib';
 import { useAppStore } from '../store/useAppStore';
 import { useUiStore } from '../store/useUiStore';
@@ -7,17 +9,16 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-export default function Sidebar({ onClose }: SidebarProps) {
+function Sidebar({ onClose }: SidebarProps) {
   const activeChapterId = useAppStore(s => s.activeChapterId);
   const setActiveChapterId = useAppStore(s => s.setActiveChapterId);
   const setIsLibraryOpen = useUiStore(s => s.setIsLibraryOpen);
   const addChapter = useAppStore(s => s.addChapter);
   const deleteChapter = useAppStore(s => s.deleteChapter);
   const lastDeletedChapter = useAppStore(s => s.lastDeletedChapter);
-  const getActiveBook = useAppStore(s => s.getActiveBook);
-
-  const activeBook = getActiveBook();
-  const chapters = activeBook.chapters;
+  const ids = useAppStore(useShallow(s => s.getActiveBook().chapters.map(c => c.id)));
+  const titles = useAppStore(useShallow(s => s.getActiveBook().chapters.map(c => c.title)));
+  const chapters = ids.map((id, index) => ({ id, title: titles[index] }));
 
   const handleSelectChapter = (id: string) => {
     setActiveChapterId(id);
@@ -40,7 +41,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <span>Библиотека</span>
         </button>
         {onClose && (
-          <button onClick={onClose} className="md:hidden p-1 text-stone-400 hover:text-stone-700 cursor-pointer">
+          <button onClick={onClose} aria-label="Закрыть главы" className="md:hidden p-1 text-stone-400 hover:text-stone-700 cursor-pointer">
             <X size={18} />
           </button>
         )}
@@ -106,3 +107,4 @@ export default function Sidebar({ onClose }: SidebarProps) {
     </div>
   );
 }
+export default memo(Sidebar);

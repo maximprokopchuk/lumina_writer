@@ -74,7 +74,7 @@ export class DocxExporter implements Exporter {
       saveAs(blob, `${book.title || 'book'}.docx`);
     } catch (err) {
       console.error('DOCX export error:', err);
-      alert('Ошибка при экспорте в DOCX.');
+      throw err;
     }
   }
 }

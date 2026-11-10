@@ -21,6 +21,7 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
   const localSaveError = useUiStore(s => s.localSaveError);
   const cloudSaveError = useUiStore(s => s.cloudSaveError);
   const syncNotice = useUiStore(s => s.syncNotice);
+  const exportError = useUiStore(s => s.exportError);
   const authReady = useAppStore(s => s.authReady);
   const isFocusMode = useUiStore(s => s.isFocusMode);
   const setIsFocusMode = useUiStore(s => s.setIsFocusMode);
@@ -137,6 +138,9 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
             <button onClick={manualSave} className="shrink-0 underline underline-offset-4">Повторить сохранение</button>
           </div>
         )}
+        {exportError && <div role="alert" className="flex items-center justify-between gap-3 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          <span>{exportError}</span><button onClick={() => useUiStore.setState({ exportError: null })}>Закрыть</button>
+        </div>}
         <main className="flex-1 overflow-y-auto px-4 py-6 md:p-12">
           <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 pb-32">
             {!isFocusMode && (
@@ -163,15 +167,7 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
               </motion.div>
             )}
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`${userId || 'guest'}-${activeBookId}-${activeChapterId}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-6"
-              >
+            <div key={`${userId || 'guest'}-${activeBookId}-${activeChapterId}`} className="space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="h-px flex-1 bg-stone-200" />
                   <input
@@ -190,8 +186,7 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
                   content={activeChapter.content}
                   onChange={changeContent}
                 />
-              </motion.div>
-            </AnimatePresence>
+            </div>
           </div>
         </main>
       </div>

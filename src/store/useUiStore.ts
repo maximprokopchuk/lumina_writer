@@ -5,6 +5,7 @@ interface UiState {
   localSaveError: string | null;
   cloudSaveError: string | null;
   syncNotice: string | null;
+  exportError: string | null;
   isSaving: boolean;
   setIsSaving: (v: boolean) => void;
   isExporting: boolean;
@@ -26,6 +27,7 @@ export const useUiStore = create<UiState>((set) => ({
   localSaveError: null,
   cloudSaveError: null,
   syncNotice: null,
+  exportError: null,
   isSaving: false,
   setIsSaving: (isSaving) => set({ isSaving }),
   isExporting: false,

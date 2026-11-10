@@ -34,7 +34,7 @@ function Editor({ content, documentKey, onChange }: EditorProps) {
     },
     editorProps: {
       attributes: { class: 'focus:outline-none min-h-[70vh] font-serif text-[17px] md:text-[18px] leading-[1.85]', 'aria-label': 'Текст главы', role: 'textbox', 'aria-multiline': 'true' },
-      handleKeyDown: (view, event) => {
+      handleKeyDown: (_view, event) => {
         if (!isSpeechShortcut(event, useEditorPreferences.getState().shortcut)) return false;
         event.preventDefault();
         editor?.commands.formatDirectSpeech();
