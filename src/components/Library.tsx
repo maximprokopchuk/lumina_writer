@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, BookOpen, X, RotateCcw, CopyCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import { duplicateCandidates } from '../utils/duplicates';
+import { useDialog } from '../hooks/useDialog';
 
 export default function Library({ onClose }: { onClose: () => void }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialog(dialog);
   const allBooks = useAppStore(s => s.books);
   const activeBookId = useAppStore(s => s.activeBookId);
   const lastDeleted = useAppStore(s => s.lastDeletedBook);
@@ -15,7 +18,7 @@ export default function Library({ onClose }: { onClose: () => void }) {
   const open = (id: string) => { useAppStore.getState().selectBook(id); onClose(); };
   const add = () => { useAppStore.getState().addBook(); onClose(); };
   return (
-    <motion.div role="dialog" aria-modal="true" aria-labelledby="library-title" tabIndex={-1}
+    <motion.div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="library-title" tabIndex={-1}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 overflow-y-auto bg-stone-100 p-5 md:p-12">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -25,7 +28,7 @@ export default function Library({ onClose }: { onClose: () => void }) {
             <h1 id="library-title" className="text-3xl font-serif font-bold text-stone-800 md:text-4xl">Ваша библиотека</h1>
             <p className="mt-2 text-sm text-stone-500">Продолжайте историю с того места, где остановились.</p>
           </div>
-          <button autoFocus onClick={onClose} aria-label="Закрыть библиотеку" className="rounded-full p-2 hover:bg-stone-200"><X size={22} /></button>
+          <button onClick={onClose} aria-label="Закрыть библиотеку" className="rounded-full p-2 hover:bg-stone-200"><X size={22} /></button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button onClick={add} className="inline-flex items-center gap-2 rounded-lg bg-stone-800 px-4 py-2.5 text-sm font-medium text-white hover:bg-stone-700"><Plus size={18} />Новое произведение</button>

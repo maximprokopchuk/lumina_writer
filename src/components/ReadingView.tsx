@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Book } from '../types';
 import { sanitizeHtml } from '../utils/sanitize';
+import { useDialog } from '../hooks/useDialog';
 
 interface ReadingViewProps {
   book: Book;
@@ -11,9 +12,11 @@ interface ReadingViewProps {
 
 export default function ReadingView({ book, onClose }: ReadingViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  useDialog(scrollRef);
 
   return (
     <motion.div
+      role="dialog" aria-modal="true" aria-labelledby="reading-title" tabIndex={-1}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -33,7 +36,7 @@ export default function ReadingView({ book, onClose }: ReadingViewProps) {
       <div className="max-w-[680px] mx-auto px-6 py-20">
         {/* Title page block */}
         <div className="text-center mb-20">
-          <h1 className="font-serif text-4xl md:text-5xl font-bold text-stone-900 mb-4 leading-tight">
+          <h1 id="reading-title" className="font-serif text-4xl md:text-5xl font-bold text-stone-900 mb-4 leading-tight">
             {book.title || 'Без названия'}
           </h1>
           {book.author && (
