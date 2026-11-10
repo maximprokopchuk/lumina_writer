@@ -3,146 +3,88 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect } from 'react';
-import { 
-  Bold, 
-  Italic, 
-  Underline as UnderlineIcon, 
-  AlignLeft, 
-  AlignCenter, 
-  AlignRight,
-  Type,
-  Quote
-} from 'lucide-react';
-import { cn } from '../utils/lib';
+import { memo, useEffect, useRef } from 'react';
+import { DirectSpeech, isSpeechShortcut } from '../editor/direct-speech';
+import { useEditorPreferences } from '../editor/preferences';
+import EditorToolbar from './EditorToolbar';
 
-interface EditorProps {
-  content: string;
-  onChange: (content: string) => void;
-}
+interface EditorProps { content: string; documentKey: string; onChange: (content: string) => void }
+interface Position { from: number; to: number; scrollTop: number }
 
-export default function Editor({ content, onChange }: EditorProps) {
+function Editor({ content, documentKey, onChange }: EditorProps) {
+  const lastContent = useRef(content);
+  const position = useRef<Position>({ from: 1, to: 1, scrollTop: 0 });
+  const restoring = useRef(false);
+  const storageKey = `lumina:position:${documentKey}`;
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
-      Placeholder.configure({
-        placeholder: 'Начните писать свою историю...',
-      }),
-    ],
-    content: content,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+    extensions: [StarterKit, Underline, TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Placeholder.configure({ placeholder: 'Начните писать свою историю…' }), DirectSpeech],
+    content,
+    shouldRerenderOnTransaction: false,
+    onUpdate: ({ editor: current }) => {
+      const html = current.getHTML();
+      lastContent.current = html;
+      onChange(html);
+    },
+    onSelectionUpdate: ({ editor: current }) => {
+      if (!restoring.current) {
+        position.current = { ...position.current, from: current.state.selection.from, to: current.state.selection.to };
+        try { sessionStorage.setItem(storageKey, JSON.stringify(position.current)); } catch { /* Optional navigation state. */ }
+      }
     },
     editorProps: {
-      attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none min-h-[70vh] font-serif leading-relaxed',
+      attributes: { class: 'focus:outline-none min-h-[70vh] font-serif text-[17px] md:text-[18px] leading-[1.85]', 'aria-label': 'Текст главы', role: 'textbox', 'aria-multiline': 'true' },
+      handleKeyDown: (view, event) => {
+        if (!isSpeechShortcut(event, useEditorPreferences.getState().shortcut)) return false;
+        event.preventDefault();
+        editor?.commands.formatDirectSpeech();
+        return true;
       },
     },
   });
-
-  // Update editor content when the chapter changes externally
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
-    }
+    if (!editor || content === lastContent.current) return;
+    const selection = editor.state.selection;
+    const main = editor.view.dom.closest('main'); const scroll = main?.scrollTop;
+    restoring.current = true;
+    editor.commands.setContent(content, false);
+    const end = editor.state.doc.content.size;
+    editor.commands.setTextSelection({ from: Math.min(selection.from, end), to: Math.min(selection.to, end) });
+    lastContent.current = content;
+    restoring.current = false;
+    if (main && scroll !== undefined) main.scrollTop = scroll;
   }, [content, editor]);
 
-  if (!editor) {
-    return null;
-  }
+  useEffect(() => {
+    if (!editor) return;
+    const main = editor.view.dom.closest('main');
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null') as Position | null;
+      if (saved && [saved.from, saved.to, saved.scrollTop].every(Number.isFinite)) {
+        position.current = saved;
+        restoring.current = true;
+        const end = editor.state.doc.content.size;
+        editor.commands.setTextSelection({ from: Math.max(1, Math.min(saved.from, end)), to: Math.max(1, Math.min(saved.to, end)) });
+        restoring.current = false;
+      }
+    } catch { /* A missing or malformed bookmark must never prevent opening a chapter. */ }
+    const frame = requestAnimationFrame(() => { if (main) main.scrollTop = position.current.scrollTop; });
+    let timer: ReturnType<typeof setTimeout>;
+    const persist = () => { try { sessionStorage.setItem(storageKey, JSON.stringify(position.current)); } catch { /* Optional. */ } };
+    const scroll = () => {
+      if (main) position.current.scrollTop = main.scrollTop;
+      clearTimeout(timer); timer = setTimeout(persist, 150);
+    };
+    main?.addEventListener('scroll', scroll, { passive: true });
+    return () => { cancelAnimationFrame(frame); clearTimeout(timer); persist(); main?.removeEventListener('scroll', scroll); };
+  }, [editor, storageKey]);
 
-  const toggleDirectSpeech = () => {
-    // Russian direct speech format: starts with an em-dash and a space
-    editor.chain().focus().insertContent('— ').run();
-  };
-
+  if (!editor) return null;
   return (
-    <div className="w-full bg-white rounded-lg shadow-sm border border-stone-200 flex flex-col">
-      {/* Editor Toolbar */}
-      <div className="flex items-center flex-wrap gap-1 p-2 border-b border-stone-100 bg-stone-50/50 rounded-t-lg">
-        <button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={cn(
-            "p-2 rounded hover:bg-stone-200 transition-colors",
-            editor.isActive('bold') && "bg-stone-200 text-stone-900"
-          )}
-          title="Жирный (Ctrl+B)"
-        >
-          <Bold size={18} />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={cn(
-            "p-2 rounded hover:bg-stone-200 transition-colors",
-            editor.isActive('italic') && "bg-stone-200 text-stone-900"
-          )}
-          title="Курсив (Ctrl+I)"
-        >
-          <Italic size={18} />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={cn(
-            "p-2 rounded hover:bg-stone-200 transition-colors",
-            editor.isActive('underline') && "bg-stone-200 text-stone-900"
-          )}
-          title="Подчеркнутый (Ctrl+U)"
-        >
-          <UnderlineIcon size={18} />
-        </button>
-
-        <div className="w-px h-6 bg-stone-200 mx-1" />
-
-        <button
-          onClick={() => editor.chain().focus().setTextAlign('left').run()}
-          className={cn(
-            "p-2 rounded hover:bg-stone-200 transition-colors",
-            editor.isActive({ textAlign: 'left' }) && "bg-stone-200 text-stone-900"
-          )}
-          title="По левому краю"
-        >
-          <AlignLeft size={18} />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().setTextAlign('center').run()}
-          className={cn(
-            "p-2 rounded hover:bg-stone-200 transition-colors",
-            editor.isActive({ textAlign: 'center' }) && "bg-stone-200 text-stone-900"
-          )}
-          title="По центру"
-        >
-          <AlignCenter size={18} />
-        </button>
-        <button
-          onClick={() => editor.chain().focus().setTextAlign('right').run()}
-          className={cn(
-            "p-2 rounded hover:bg-stone-200 transition-colors",
-            editor.isActive({ textAlign: 'right' }) && "bg-stone-200 text-stone-900"
-          )}
-          title="По правому краю"
-        >
-          <AlignRight size={18} />
-        </button>
-
-        <div className="w-px h-6 bg-stone-200 mx-1" />
-
-        <button
-          onClick={toggleDirectSpeech}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-stone-200 transition-colors text-sm font-medium text-stone-600"
-          title="Прямая речь (Тире)"
-        >
-          <Quote size={16} />
-          <span>Прямая речь</span>
-        </button>
-      </div>
-
-      <div className="p-4 md:p-12">
-        <EditorContent editor={editor} />
-      </div>
+    <div className="editor-shell flex w-full flex-col rounded-xl border border-stone-200 bg-white shadow-sm">
+      <EditorToolbar editor={editor} />
+      <div className="px-5 py-8 md:px-12 md:py-10"><EditorContent editor={editor} /></div>
     </div>
   );
 }
+export default memo(Editor);

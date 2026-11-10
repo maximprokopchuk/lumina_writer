@@ -27,9 +27,8 @@ export default function Auth() {
 
   if (!isSupabaseConfigured) {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-100 rounded-lg text-amber-700 text-xs">
-        <AlertCircle size={14} />
-        <span>Настройте Supabase для входа</span>
+      <div className="hidden sm:flex items-center gap-2 px-2 py-2 text-stone-500 text-xs" title="Черновики сохраняются в этом браузере">
+        <span>Без аккаунта</span>
       </div>
     );
   }

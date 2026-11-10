@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback } from 'react';
 import { Minimize2 } from 'lucide-react';
 
 import Sidebar from './Sidebar';
@@ -38,6 +39,9 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
   const books = useAppStore(s => s.books);
   const activeBookId = useAppStore(s => s.activeBookId);
   const activeChapterId = useAppStore(s => s.activeChapterId);
+  const userId = useAppStore(s => s.user?.id);
+  const changeContent = useCallback((content: string) => updateChapterContent(content, activeBookId, activeChapterId),
+    [updateChapterContent, activeBookId, activeChapterId]);
 
   const activeBook = getActiveBook();
   const activeChapter = getActiveChapter();
@@ -97,7 +101,7 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="min-w-0 flex-1 flex flex-col overflow-hidden relative">
         <AnimatePresence>
           {!isFocusMode && (
             <motion.div
@@ -146,6 +150,7 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
                   onChange={(e) => updateBookMeta('title', e.target.value)}
                   className="w-full text-3xl md:text-5xl font-serif font-bold bg-transparent border-none focus:outline-none placeholder:text-stone-300"
                   placeholder="Название произведения"
+                  aria-label="Название произведения"
                 />
                 <input
                   type="text"
@@ -153,13 +158,14 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
                   onChange={(e) => updateBookMeta('author', e.target.value)}
                   className="w-full text-xl font-serif text-stone-500 bg-transparent border-none focus:outline-none placeholder:text-stone-300"
                   placeholder="Имя автора"
+                  aria-label="Имя автора"
                 />
               </motion.div>
             )}
 
             <AnimatePresence mode="wait">
               <motion.div
-                key={`${activeBookId}-${activeChapterId}`}
+                key={`${userId || 'guest'}-${activeBookId}-${activeChapterId}`}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -174,13 +180,15 @@ export default function AppLayout({ manualSave }: AppLayoutProps) {
                     onChange={(e) => updateChapterTitle(e.target.value)}
                     className="text-center text-sm uppercase tracking-[0.2em] font-medium text-stone-400 bg-transparent border-none focus:outline-none w-auto min-w-[200px]"
                     placeholder="Название главы"
+                    aria-label="Название главы"
                   />
                   <div className="h-px flex-1 bg-stone-200" />
                 </div>
 
                 <Editor
+                  documentKey={`${userId || 'guest'}:${activeBookId}:${activeChapterId}`}
                   content={activeChapter.content}
-                  onChange={updateChapterContent}
+                  onChange={changeContent}
                 />
               </motion.div>
             </AnimatePresence>

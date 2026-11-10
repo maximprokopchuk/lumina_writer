@@ -26,7 +26,16 @@
 }
 
 .ProseMirror p {
-  margin-bottom: 1.5em;
+  margin-bottom: .85em;
+}
+
+.ProseMirror { overflow-wrap: anywhere; scroll-margin-top: 7rem; }
+.ProseMirror ::selection { background: #f3e6c7; }
+button, summary, select { touch-action: manipulation; }
+button { cursor: pointer; }
+:where(button, summary, select):focus-visible { outline: 2px solid #a8a29e; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
 .ProseMirror h1 {

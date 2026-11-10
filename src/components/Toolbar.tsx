@@ -31,6 +31,8 @@ export default function Toolbar({ onSave, onExportPDF, onExportDOCX, onExportFB2
 
         <button
           onClick={onSave}
+          aria-label={isSaving ? 'Сохранение' : 'Сохранить'}
+          title="Сохранить (Ctrl / ⌘ + S)"
           disabled={isSaving}
           className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-md transition-colors disabled:opacity-50 cursor-pointer"
         >
