@@ -25,28 +25,42 @@ export class SyncEngine {
   private localFailures = new Set<string>();
   private cloudError: string | null = null;
   private notice: string | null = null;
+  private recoveredLocally: LocalBook[] = [];
   constructor(readonly library: LocalLibrary, private transport: SyncTransport | null,
     private onChange: (snapshot: SyncSnapshot) => void) {}
 
   start() {
     try {
       this.library.migrateLegacy();
-      this.entries = new Map(this.library.read().map(e => [e.book.id, e]));
     } catch (error) {
       this.localFailures.add('read');
       this.notice = error instanceof Error ? error.message : 'Ошибка чтения черновиков.';
     }
+    try {
+      this.entries = new Map(this.library.read().map(e => [e.book.id, e]));
+      if (this.library.issues.length) { this.localFailures.add('read'); this.notice = this.library.issues[0]; }
+    } catch { this.localFailures.add('read'); }
     this.emit();
     return this.sync();
   }
 
   getEntries() { return [...this.entries.values()]; }
   private persist(entry: LocalBook) {
-    try { this.library.write(entry); this.localFailures.delete(entry.book.id); return true; }
+    try {
+      const recovered = this.library.write(entry);
+      if (recovered) this.recoveredLocally.push(recovered);
+      this.localFailures.delete(entry.book.id); return true;
+    }
     catch { this.localFailures.add(entry.book.id); return false; }
+  }
+  private absorbRecoveries() {
+    for (const entry of this.recoveredLocally) this.entries.set(entry.book.id, entry);
+    if (this.recoveredLocally.length) this.notice = 'В другой вкладке найдена новая версия. Оба текста сохранены в библиотеке.';
+    this.recoveredLocally = [];
   }
   private emit() {
     if (this.stopped) return;
+    this.absorbRecoveries();
     this.onChange({
       books: this.getEntries().filter(e => !e.deleted).map(e => e.book),
       syncing: !!this.flight,
@@ -61,18 +75,13 @@ export class SyncEngine {
     const entry = { ...newLocalBook(book), baseVersion: old?.baseVersion ?? book.cloudVersion ?? null };
     this.entries.set(book.id, entry);
     this.persist(entry);
+    this.absorbRecoveries();
     this.emit();
     this.schedule();
   }
   remove(id: string) {
     const old = this.entries.get(id);
     if (!old || this.stopped) return;
-    if (old.book.isPlaceholder && !old.baseVersion) {
-      this.entries.delete(id);
-      try { this.library.remove(id); } catch { this.localFailures.add(id); }
-      this.emit();
-      return;
-    }
     const entry = { ...old, deleted: true, dirty: true, changeId: crypto.randomUUID() };
     this.entries.set(id, entry);
     this.persist(entry);
@@ -150,6 +159,7 @@ export class SyncEngine {
         }
       }
       this.entries = next;
+      this.absorbRecoveries();
       if (merged.recovered) this.notice = 'Найдены разные версии. Ваш текст сохранён отдельной локальной копией; проверьте библиотеку.';
       this.emit();
       for (const id of [...this.entries.keys()]) {

@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { fetchBooks, saveBook, deleteCloudBook } from '../lib/api';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { LocalLibrary, navigationKey, validBook } from '../lib/local-library';
+import { LocalLibrary, navigationKey } from '../lib/local-library';
 import { SyncEngine } from '../lib/sync-engine';
-import { LocalBook } from '../types';
 import { createPlaceholder, useAppStore } from '../store/useAppStore';
 import { useUiStore } from '../store/useUiStore';
 
@@ -71,9 +70,9 @@ export function useBooks() {
       if (!event.key?.startsWith(library.prefix)) return;
       if (!event.newValue) { void engine.sync(); return; }
       try {
-        const entry = JSON.parse(event.newValue) as LocalBook;
-        if (validBook(entry.book) && typeof entry.dirty === 'boolean' && typeof entry.deleted === 'boolean'
-          && typeof entry.changeId === 'string') engine.receiveExternal(entry);
+        // Read the current committed header: an older event may refer to retired content chunks.
+        const raw = localStorage.getItem(event.key);
+        if (raw) engine.receiveExternal(library.decode(raw));
       } catch { /* Do not replace a draft with malformed data from another tab. */ }
     };
     window.addEventListener('online', refresh);

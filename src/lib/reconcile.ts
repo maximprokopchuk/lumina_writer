@@ -11,6 +11,10 @@ export function reconcile(local: LocalBook[], remote: Book[]) {
   for (const entry of local) {
     const server = cloud.get(entry.book.id);
     cloud.delete(entry.book.id);
+    if (!entry.dirty && !entry.deleted && server?.cloudVersion === entry.baseVersion) {
+      result.set(entry.book.id, entry);
+      continue;
+    }
     if (entry.deleted) {
       if (!server) continue;
       if (entry.baseVersion === server.cloudVersion || (!entry.baseVersion && sameManuscript(entry.book, server))) {
